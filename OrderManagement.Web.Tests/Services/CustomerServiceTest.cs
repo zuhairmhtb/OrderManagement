@@ -364,6 +364,87 @@ public class CustomerServiceTest : IDisposable
         _mapperMock.Verify(m => m.Map<IEnumerable<CustomerProfileDto>>(It.IsAny<List<Customer>>()), Times.Once);
     }
 
+    [Fact]
+    public async Task AddAddressAsync_ShouldPublishAddAddressCommand()
+    {
+        // Arrange
+        var command = new AddAddressCommand
+        {
+            CustomerId = Guid.NewGuid(),
+            Street = "123 Main Street",
+            City = "Test City",
+            PostalCode = "12345",
+            Country = "USA",
+            State = "Test State"
+        };
+
+        // Act
+        var result = await _customerService.AddAddressAsync(command);
+
+        // Assert
+        Assert.True(result);
+        _publishEndpointMock.Verify(x => x.Publish(It.IsAny<AddAddressCommand>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RemoveAddressAsync_ShouldPublishRemoveAddressCommand()
+    {
+        // Arrange
+        var command = new RemoveAddressCommand
+        {
+            AddressId = Guid.NewGuid()
+        };
+
+        // Act
+        var result = await _customerService.RemoveAddressAsync(command);
+
+        // Assert
+        Assert.True(result);
+        _publishEndpointMock.Verify(x => x.Publish(It.IsAny<RemoveAddressCommand>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateAddressAsync_ShouldPublishUpdateAddressCommand()
+    {
+        // Arrange
+        var command = new UpdateAddressCommand
+        {
+            AddressId = Guid.NewGuid(),
+            Street = "456 Updated Street",
+            City = "Updated City",
+            PostalCode = "54321",
+            Country = "Canada",
+            State = "Updated State"
+        };
+
+        // Act
+        var result = await _customerService.UpdateAddressAsync(command);
+
+        // Assert
+        Assert.True(result);
+        _publishEndpointMock.Verify(x => x.Publish(It.IsAny<UpdateAddressCommand>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateProfileAsync_ShouldPublishUpdateProfileCommand()
+    {
+        // Arrange
+        var command = new UpdateProfileCommand
+        {
+            CustomerId = Guid.NewGuid(),
+            FirstName = "Updated John",
+            LastName = "Updated Doe",
+            PhoneNumber = "+1987654321"
+        };
+
+        // Act
+        var result = await _customerService.UpdateProfileAsync(command);
+
+        // Assert
+        Assert.True(result);
+        _publishEndpointMock.Verify(x => x.Publish(It.IsAny<UpdateProfileCommand>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     
     protected virtual void Dispose(bool disposing)
     {
