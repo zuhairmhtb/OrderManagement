@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="OrderManagement.Database/OrderManagement.Database.csproj" />
+  <Project Path="OrderManagement.Web/OrderManagement.Web.csproj" />
+  <Project Path="OrderManagement.Worker/OrderManagement.Worker.csproj" />
+</Solution>
