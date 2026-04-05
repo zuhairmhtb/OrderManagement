@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OrderManagement.Database.Context;
+using OrderManagement.Database.Mappings;
 
 namespace OrderManagement.Database;
 
@@ -10,6 +11,7 @@ public static class DependencyInjection
 {
     public static void Configure(this IServiceCollection services, IConfiguration configuration, Assembly? assembly)
     {
+        // Configure Database
         services.AddDbContext<ApplicationDbContext>(options =>
         {
             options.UseSqlServer(configuration.GetConnectionString("OrderManagement"), config =>
@@ -19,5 +21,8 @@ public static class DependencyInjection
                 }
             });
         });
+
+        // Configure AutoMapper
+        services.AddAutoMapper(cfg => cfg.AddProfile<MappingProfile>());
     }
 }

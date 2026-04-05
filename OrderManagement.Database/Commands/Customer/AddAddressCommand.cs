@@ -1,8 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace OrderManagement.Database.Dtos;
+namespace OrderManagement.Database.Commands.Customer;
 
-public class AddressDto
+public class AddAddressCommand
 {
     [Required]
     [MaxLength(200)]
@@ -22,4 +22,7 @@ public class AddressDto
 
     [MaxLength(100)]
     public string? State { get; set; }
+
+    [Required]
+    public Guid CustomerId { get; set; }
 }

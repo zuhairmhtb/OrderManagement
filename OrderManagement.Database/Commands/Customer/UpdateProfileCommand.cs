@@ -1,9 +1,8 @@
 using System.ComponentModel.DataAnnotations;
-using OrderManagement.Database.Dtos;
 
-namespace OrderManagement.Database.Commands;
+namespace OrderManagement.Database.Commands.Customer;
 
-public class UpdateProfileDto
+public class UpdateProfileCommand
 {
     [MaxLength(50)]
     public string? FirstName { get; set; }
@@ -15,5 +14,6 @@ public class UpdateProfileDto
     [MaxLength(20)]
     public string? PhoneNumber { get; set; }
 
-    public AddressDto? Address { get; set; }
+    [Required]
+    public Guid CustomerId { get; set; }
 }

@@ -1,16 +1,17 @@
 using System.ComponentModel.DataAnnotations;
-using OrderManagement.Database.Dtos;
+using OrderManagement.Database.Dtos.Customer;
+using OrderManagement.Database.Dtos.Order;
 
-namespace OrderManagement.Database.Commands;
+namespace OrderManagement.Database.Commands.Order;
 
-public class PlaceOrderDto
+public class PlaceOrderCommand
 {
     [Required]
     [MinLength(1, ErrorMessage = "At least one product is required")]
     public List<OrderItemDto> Products { get; set; } = new();
 
     [Required]
-    public int CustomerId { get; set; }
+    public Guid CustomerId { get; set; }
 
     [Required]
     public AddressDto ShippingAddress { get; set; } = null!;
@@ -26,12 +27,4 @@ public class PlaceOrderDto
     public string Currency { get; set; } = null!;
 }
 
-public class OrderItemDto
-{
-    [Required]
-    public int ProductId { get; set; }
 
-    [Required]
-    [Range(1, int.MaxValue, ErrorMessage = "Quantity must be at least 1")]
-    public int Quantity { get; set; }
-}
