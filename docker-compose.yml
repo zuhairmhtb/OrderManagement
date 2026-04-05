@@ -1,0 +1,37 @@
+services:
+    db:
+      image: mcr.microsoft.com/mssql/server:2025-latest
+      environment:
+        - MSSQL_SA_PASSWORD=Admin@123
+        - ACCEPT_EULA=Y
+      volumes:
+        - db_data:/var/opt/mssql
+      ports:
+        - "1433:1433"
+
+    rabbitmq:
+      image: rabbitmq:3-management
+      environment:
+        - RABBITMQ_DEFAULT_USER=admin
+        - RABBITMQ_DEFAULT_PASS=admin123
+      ports:
+        - "5672:5672"
+        - "15672:15672"
+
+    # webapi:
+    #   build: .
+    #   ports:
+    #     - "5115:5115"
+    #   environment:
+    #     - ASPNETCORE_ENVIRONMENT=Development
+    #     - ASPNETCORE_URLS=http://+:5115
+    #   depends_on:
+    #     - db
+    #     - rabbitmq [ "dotnet", "OrderManagement.WebApi.dll" ]
+
+volumes:
+    db_data:
+
+networks:
+    default:
+      driver: bridge
