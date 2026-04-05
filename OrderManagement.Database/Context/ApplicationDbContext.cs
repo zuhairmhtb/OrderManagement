@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using OrderManagement.Database.Models;
+using OrderManagement.Database.Seeds;
 
 namespace OrderManagement.Database.Context;
 
@@ -24,6 +25,8 @@ public class ApplicationDbContext: DbContext
         // Configure Product Table
         modelBuilder.Entity<Product>()
             .ToTable("Products");
+        modelBuilder.Entity<Product>()
+            .HasData(ProductSeed.GetProducts());
 
         modelBuilder.Entity<Product>()
             .Property(p => p.Currency)
