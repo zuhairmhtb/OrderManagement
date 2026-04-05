@@ -22,12 +22,14 @@ public class Program
         services.AddScoped<ICustomerService, CustomerService>();
         services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<IProductService, ProductService>();
+        services.AddScoped<IAuthenticationService, AuthenticationService>();
 
         // Add logging dependencies
         services.AddLogging(config =>
         {
             config.AddConsole();
             // Add other logging providers as needed
+            
         });
     }
 

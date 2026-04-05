@@ -26,7 +26,7 @@ public class ApplicationDbContext: DbContext
         modelBuilder.Entity<Product>()
             .ToTable("Products");
         modelBuilder.Entity<Product>()
-            .HasData(ProductSeed.GetProducts());
+            .HasData(ProductSeed.GetStaticProducts());
 
         modelBuilder.Entity<Product>()
             .Property(p => p.Currency)
@@ -41,6 +41,8 @@ public class ApplicationDbContext: DbContext
         // Configure Customer Table
         modelBuilder.Entity<Customer>()
         .ToTable("Customers");
+        modelBuilder.Entity<Customer>()
+            .HasData(CustomerSeed.GetStaticCustomers());
 
         modelBuilder.Entity<Customer>()
             .HasIndex(c => c.Email)

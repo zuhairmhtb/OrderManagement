@@ -37,10 +37,6 @@ public class MappingProfile : Profile
         CreateMap<PurchasedProduct, OrderItemDto>();
 
         // Map Order to CustomerOrderDto
-        // ShippingAddress / BillingAddress are stored as flat columns on Order, so they
-        // are projected into AddressDto objects via explicit MapFrom lambdas.
-        // Customer is not a navigation property on Order, so it is intentionally
-        // ignored here and set manually in the service after the map call.
         CreateMap<Order, CustomerOrderDto>()
             .ForMember(dst => dst.OrderId,
                 opt => opt.MapFrom(src => src.Id))
@@ -75,16 +71,11 @@ public class MappingProfile : Profile
 
         // Map Product to ProductDetailDto
         CreateMap<Product, ProductDetailDto>()
-            .ForMember(dst => dst.Id, opt => opt.Ignore()) // Id type mismatch (int -> Guid), handled elsewhere
-            .ForMember(dst => dst.Price, opt => opt.MapFrom(src => (decimal)src.Price))
+            .ForMember(dst => dst.Id, opt => opt.MapFrom(src => src.Id))
+            .ForMember(dst => dst.Price, opt => opt.MapFrom(src => src.Price))
             .ForMember(dst => dst.StockQuantity, opt => opt.MapFrom(src => src.Quantity));
 
         // Map PlaceOrderCommand to Order.
-        // Shipping / Billing addresses are stored as flat columns, so each field is
-        // projected explicitly from the nested AddressDto on the command.
-        // OrderStatus is hardcoded to Pending — a new order is always in that state.
-        // Fields that depend on the loaded Customer entity, computed totals, or the
-        // built PurchasedProduct list are Ignored here and set in the service.
         CreateMap<PlaceOrderCommand, Order>()
             .ForMember(dst => dst.OrderStatus,
                 opt => opt.MapFrom(_ => OrderStatus.Pending))

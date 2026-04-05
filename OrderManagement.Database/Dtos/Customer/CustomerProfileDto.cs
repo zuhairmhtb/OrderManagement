@@ -25,4 +25,6 @@ public class CustomerProfileDto
     [Phone]
     [MaxLength(20)]
     public string? PhoneNumber { get; set; }
+
+    public IEnumerable<AddressDto>? Addresses { get; set; } = Enumerable.Empty<AddressDto>();
 }
