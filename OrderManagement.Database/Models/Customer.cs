@@ -1,7 +1,5 @@
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using System.Text.Json.Serialization;
-
+using OrderManagement.Database.Constants;
 namespace OrderManagement.Database.Models;
 
 public class Customer
@@ -18,6 +16,9 @@ public class Customer
     [MinLength(6)]
     [MaxLength(100)]
     public string Password { get; set; } = null!;
+
+    [Required]
+    public UserRole Role { get; set; } = UserRole.Customer;
 
     [MaxLength(50)]
     public string? FirstName { get; set; }

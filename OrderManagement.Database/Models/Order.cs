@@ -94,30 +94,4 @@ public class Order
 
     // Navigation property
     public List<PurchasedProduct> Products { get; set; } = new List<PurchasedProduct>();
-
-    
-
-    /// <summary>
-    /// Computed Values - TODO: Currently, the currency is not being used but a CurrencyConverter service can be used 
-    /// to convert the price of each product to the order's currency before calculating the cost.
-    /// </summary>
-    // public double Subtotal
-    // {
-    //     get
-    //     {
-    //         double total = 0;
-    //         foreach (var product in Products)
-    //         {
-    //             total += product.Price * product.Quantity;
-    //         }
-    //         return total;
-    //     }
-    // }
-    // public double TotalAmount { 
-    //     get
-    //     {
-    //         var total = Vat + ShippingCost + AdditionalCharges + Subtotal;
-    //         return total;
-    //     } 
-    // }
 }
