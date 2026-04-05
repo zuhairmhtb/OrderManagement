@@ -1,13 +1,17 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 using OrderManagement.Database.Constants;
 
 namespace OrderManagement.Database.Models;
 
-public class Product
+public class PurchasedProduct
 {
     [Key]
-    public int Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    [Required]
+    public int ProductId { get; set; }
     
     [Required]
     [MaxLength(200)]
@@ -22,9 +26,14 @@ public class Product
     [MaxLength(3)]
     public Currency Currency { get; set; }
     
-    [Range(0, int.MaxValue, ErrorMessage = "Quantity must be non-negative")]
+    [Required]
+    [Range(1, int.MaxValue, ErrorMessage = "Quantity must be at least 1")]
     public int Quantity { get; set; }
     
-    [MaxLength(1000)]
-    public string? Description { get; set; }
+    // Navigation property
+    [Required]
+    public Guid OrderId { get; set; }
+
+    [JsonIgnore]
+    public Order? OrderInfo { get; set; }
 }

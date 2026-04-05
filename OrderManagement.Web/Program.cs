@@ -1,4 +1,6 @@
 
+using OrderManagement.Database;
+
 namespace OrderManagement.Web;
 
 public class Program
@@ -27,6 +29,7 @@ public class Program
         var builder = WebApplication.CreateBuilder(args);
 
         // Add services to the container.
+        DependencyInjection.Configure(builder.Services, builder.Configuration, typeof(Program).Assembly);
         ConfigureServices(builder.Services);
 
         var app = builder.Build();

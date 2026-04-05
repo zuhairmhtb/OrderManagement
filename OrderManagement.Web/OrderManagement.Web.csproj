@@ -13,4 +13,8 @@
     <PackageReference Include="AutoMapper" Version="16.1.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\OrderManagement.Database\OrderManagement.Database.csproj" />
+  </ItemGroup>
+
 </Project>
