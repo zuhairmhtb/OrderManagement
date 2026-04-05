@@ -13,7 +13,7 @@ public interface ICustomerService
     Task<bool> UpdateProfileAsync(UpdateProfileCommand command);
 
     Task<CustomerProfileDto> GetCustomerProfileAsync(Guid customerId);
-    Task<CustomerProfileDto[]> SearchCustomersAsync(
+    Task<IEnumerable<CustomerProfileDto>> SearchCustomersAsync(
         string? emailPattern = null,
         string? namePattern = null,
         int page = 1,

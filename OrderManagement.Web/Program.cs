@@ -1,5 +1,9 @@
 
+using Events.Dtos.Configuration;
+using MassTransit;
 using OrderManagement.Database;
+using OrderManagement.Web.Interfaces;
+using OrderManagement.Web.Services;
 
 namespace OrderManagement.Web;
 
@@ -14,14 +18,39 @@ public class Program
         services.AddOpenApi();
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen();
-        services.AddAutoMapper(options =>
+
+        services.AddScoped<ICustomerService, CustomerService>();
+        services.AddScoped<IOrderService, OrderService>();
+        services.AddScoped<IProductService, ProductService>();
+
+        // Add logging dependencies
+        services.AddLogging(config =>
         {
-            // options.CreateMap<Student, CreateStudentCommand>().ReverseMap();
-            // options.CreateMap<Classroom, CreateClassroomCommand>().ReverseMap();
-
+            config.AddConsole();
+            // Add other logging providers as needed
         });
+    }
 
-        // services.AddScoped<AppDbContext>();
+    static void ConfigureBroker(IServiceCollection services, IConfiguration configuration)
+    {
+        var rabbitMQConnectionString = configuration.GetSection("RabbitMQ").Get<RabbitMQConfig>();
+        Console.WriteLine($"RabbitMQ Connection String: {rabbitMQConnectionString}");
+        if(rabbitMQConnectionString != null)
+        {
+            services.AddMassTransit(x =>
+            {
+                x.UsingRabbitMq((context, cfg) =>
+                {
+                    cfg.Host(
+                        rabbitMQConnectionString.HostName, 
+                        h => {  
+                            h.Username(rabbitMQConnectionString.UserName);
+                            h.Password(rabbitMQConnectionString.Password);
+                        }
+                    );
+                });
+            });
+        }
     }
     
     public static void Main(string[] args)
@@ -30,7 +59,9 @@ public class Program
 
         // Add services to the container.
         DependencyInjection.Configure(builder.Services, builder.Configuration, typeof(Program).Assembly);
+        ConfigureBroker(builder.Services, builder.Configuration);
         ConfigureServices(builder.Services);
+        
 
         var app = builder.Build();
 

@@ -6,6 +6,7 @@ using OrderManagement.Database.Constants;
 using OrderManagement.Database.Dtos;
 using OrderManagement.Database.Dtos.Customer;
 using OrderManagement.Database.Dtos.Order;
+using OrderManagement.Database.Dtos.Product;
 using OrderManagement.Database.Models;
 
 namespace OrderManagement.Database.Mappings;
@@ -71,6 +72,12 @@ public class MappingProfile : Profile
                 opt => opt.MapFrom(src => src.Products))
             .ForMember(dst => dst.Customer,
                 opt => opt.Ignore());
+
+        // Map Product to ProductDetailDto
+        CreateMap<Product, ProductDetailDto>()
+            .ForMember(dst => dst.Id, opt => opt.Ignore()) // Id type mismatch (int -> Guid), handled elsewhere
+            .ForMember(dst => dst.Price, opt => opt.MapFrom(src => (decimal)src.Price))
+            .ForMember(dst => dst.StockQuantity, opt => opt.MapFrom(src => src.Quantity));
 
         // Map PlaceOrderCommand to Order.
         // Shipping / Billing addresses are stored as flat columns, so each field is

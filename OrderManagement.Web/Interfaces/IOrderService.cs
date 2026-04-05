@@ -9,7 +9,7 @@ public interface IOrderService
     Task<OrderStatus> PlaceOrderAsync(PlaceOrderCommand command);
     Task<CustomerOrderDto> GetOrderDetailsAsync(Guid orderId);
     Task<OrderStatus> GetOrderStatusAsync(Guid orderId);
-    Task<CustomerOrderDto[]> SearchOrdersAsync(
+    Task<IEnumerable<CustomerOrderDto>> SearchOrdersAsync(
         DateTime? placedAtStartRange = null,
         DateTime? placedAtEndRange = null,
         DateTime? deliveredOnStartRange = null,
