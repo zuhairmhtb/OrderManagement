@@ -4,7 +4,10 @@ using Microsoft.EntityFrameworkCore;
 using OrderManagement.Database.Commands.Order;
 using OrderManagement.Database.Constants;
 using OrderManagement.Database.Context;
+using OrderManagement.Database.Dtos.Customer;
 using OrderManagement.Database.Dtos.Order;
+using OrderManagement.Database.Models;
+using OrderManagement.Database.Seeds;
 using OrderManagement.Web.Interfaces;
 
 namespace OrderManagement.Web.Services;
@@ -198,6 +201,154 @@ public class OrderService : IOrderService
 		{
 			_logger.LogError(ex, "Error occurred while searching orders with customerId: {CustomerId}, customerEmailPattern: {EmailPattern}", 
 				customerId, customerEmailPattern);
+			throw;
+		}
+	}
+
+	public async Task<CustomerOrderDto> PopulateSampleDataAsync(CustomerProfileDto? customer)
+	{
+		try
+		{
+			_logger.LogInformation("Creating and saving a sample order to the database");
+
+			// If no customer provided, get a random existing customer
+			if (customer == null)
+			{
+				var customerCount = await _context.Customers.CountAsync();
+				if (customerCount == 0)
+				{
+					throw new InvalidOperationException("No customers exist in the database. Please create a customer first.");
+				}
+
+				var random = new Random();
+				var randomIndex = random.Next(0, customerCount);
+				var randomCustomer = await _context.Customers
+					.AsNoTracking()
+					.Skip(randomIndex)
+					.FirstAsync();
+
+				customer = _mapper.Map<CustomerProfileDto>(randomCustomer);
+			}
+
+			// Generate a single random order using OrderSeed
+			var randomOrders = OrderSeed.GetOrders(1);
+			var newOrder = randomOrders.First();
+
+			// Update the order with the provided/selected customer information
+			newOrder.CustomerId = customer.Id;
+			newOrder.CustomerEmail = customer.Email;
+			newOrder.CustomerContactNumber = customer.PhoneNumber ?? "+1-555-000-0000";
+
+			// Get some existing products to add to the order
+			var existingProducts = await _context.Products
+				.AsNoTracking()
+				.Take(3) // Take up to 3 products
+				.ToListAsync();
+
+			// If no products exist, create some sample products
+			if (!existingProducts.Any())
+			{
+				var sampleProducts = ProductSeed.GetProducts(3);
+				_context.Products.AddRange(sampleProducts);
+				await _context.SaveChangesAsync();
+				existingProducts = sampleProducts;
+			}
+
+			// Create purchased products for the order
+			var random2 = new Random();
+			var purchasedProducts = new List<PurchasedProduct>();
+			double calculatedSubtotal = 0;
+
+			foreach (var product in existingProducts)
+			{
+				var quantity = random2.Next(1, 4); // 1-3 items per product
+				var lineTotal = product.Price * quantity;
+				calculatedSubtotal += lineTotal;
+
+				purchasedProducts.Add(new PurchasedProduct
+				{
+					Id = Guid.NewGuid(),
+					ProductId = product.Id,
+					Name = product.Name,
+					Price = product.Price,
+					Currency = product.Currency,
+					Quantity = quantity,
+					OrderId = newOrder.Id
+				});
+			}
+
+			// Update order totals based on actual products
+			newOrder.Subtotal = calculatedSubtotal;
+			newOrder.TotalAmount = calculatedSubtotal + newOrder.Vat + newOrder.ShippingCost + newOrder.AdditionalCharges;
+			newOrder.Products = purchasedProducts;
+
+			// Add the order and its products to the database
+			_context.Orders.Add(newOrder);
+			await _context.SaveChangesAsync();
+
+			_logger.LogInformation("Successfully created order with ID: {OrderId} for customer: {CustomerEmail}", 
+				newOrder.Id, newOrder.CustomerEmail);
+
+			// Return the created order as CustomerOrderDto
+			var orderDto = _mapper.Map<CustomerOrderDto>(newOrder);
+			orderDto.Customer = customer;
+
+			return orderDto;
+		}
+		catch (Exception ex)
+		{
+			_logger.LogError(ex, "Error occurred while creating and saving sample order");
+			throw;
+		}
+	}
+
+	public async Task<CustomerOrderDto> GetRandomOrderAsync()
+	{
+		try
+		{
+			_logger.LogInformation("Fetching a random order from the database");
+
+			// Get the total count of orders
+			var totalOrders = await _context.Orders.CountAsync();
+
+			if (totalOrders == 0)
+			{
+				_logger.LogWarning("No orders found in the database");
+				throw new InvalidOperationException("No orders exist in the database");
+			}
+
+			// Generate a random index
+			var random = new Random();
+			var randomIndex = random.Next(0, totalOrders);
+
+			// Fetch a random order using Skip
+			var randomOrder = await _context.Orders
+				.AsNoTracking()
+				.Include(o => o.Products)
+				.Skip(randomIndex)
+				.FirstAsync();
+
+			// Get customer details
+			var customer = await _context.Customers
+				.AsNoTracking()
+				.FirstOrDefaultAsync(c => c.Id == randomOrder.CustomerId);
+
+			_logger.LogInformation("Successfully retrieved random order with ID: {OrderId}", randomOrder.Id);
+
+			// Map to CustomerOrderDto
+			var orderDto = _mapper.Map<CustomerOrderDto>(randomOrder);
+			
+			// Map customer information if available
+			if (customer != null)
+			{
+				orderDto.Customer = _mapper.Map<CustomerProfileDto>(customer);
+			}
+
+			return orderDto;
+		}
+		catch (Exception ex)
+		{
+			_logger.LogError(ex, "Error occurred while fetching random order");
 			throw;
 		}
 	}

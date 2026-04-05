@@ -19,4 +19,6 @@ public interface ICustomerService
         int page = 1,
         int pageSize = 20
     );
+
+    Task<CustomerProfileDto> PopulateSampleDataAsync();
 }

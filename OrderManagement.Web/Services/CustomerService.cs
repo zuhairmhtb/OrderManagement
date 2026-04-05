@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using OrderManagement.Database.Commands.Customer;
 using OrderManagement.Database.Context;
 using OrderManagement.Database.Dtos.Customer;
+using OrderManagement.Database.Seeds;
 using OrderManagement.Web.Interfaces;
 
 namespace OrderManagement.Web.Services;
@@ -125,6 +126,82 @@ public class CustomerService : ICustomerService
 		{
 			_logger.LogError(ex, "Error occurred while searching customers with emailPattern: {EmailPattern}, namePattern: {NamePattern}", 
 				emailPattern, namePattern);
+			throw;
+		}
+	}
+
+	public async Task<CustomerProfileDto> PopulateSampleDataAsync()
+	{
+		try
+		{
+			_logger.LogInformation("Creating and saving a random customer to the database");
+
+			// Generate a single random customer using CustomerSeed
+			var randomCustomers = CustomerSeed.GetCustomers(1);
+			var newCustomer = randomCustomers.First();
+
+			// Check if a customer with this email already exists
+			var existingCustomer = await _context.Customers
+				.AsNoTracking()
+				.FirstOrDefaultAsync(c => c.Email == newCustomer.Email);
+
+			if (existingCustomer != null)
+			{
+				_logger.LogInformation("Customer with email {Email} already exists, returning existing customer", newCustomer.Email);
+				return _mapper.Map<CustomerProfileDto>(existingCustomer);
+			}
+
+			// Add the new customer to the database
+			_context.Customers.Add(newCustomer);
+			await _context.SaveChangesAsync();
+
+			_logger.LogInformation("Successfully created customer with ID: {CustomerId} and email: {Email}", 
+				newCustomer.Id, newCustomer.Email);
+
+			// Return the created customer as CustomerProfileDto
+			return _mapper.Map<CustomerProfileDto>(newCustomer);
+		}
+		catch (Exception ex)
+		{
+			_logger.LogError(ex, "Error occurred while creating and saving random customer");
+			throw;
+		}
+	}
+
+	public async Task<CustomerProfileDto> GetRandomCustomerAsync()
+	{
+		try
+		{
+			_logger.LogInformation("Fetching a random customer from the database");
+
+			// Get the total count of customers
+			var totalCustomers = await _context.Customers.CountAsync();
+
+			if (totalCustomers == 0)
+			{
+				_logger.LogWarning("No customers found in the database");
+				throw new InvalidOperationException("No customers exist in the database");
+			}
+
+			// Generate a random index
+			var random = new Random();
+			var randomIndex = random.Next(0, totalCustomers);
+
+			// Fetch a random customer using Skip
+			var randomCustomer = await _context.Customers
+				.AsNoTracking()
+				.Include(c => c.Addresses)
+				.Skip(randomIndex)
+				.FirstAsync();
+
+			_logger.LogInformation("Successfully retrieved random customer with ID: {CustomerId}", randomCustomer.Id);
+
+			// Return the customer as CustomerProfileDto
+			return _mapper.Map<CustomerProfileDto>(randomCustomer);
+		}
+		catch (Exception ex)
+		{
+			_logger.LogError(ex, "Error occurred while fetching random customer");
 			throw;
 		}
 	}

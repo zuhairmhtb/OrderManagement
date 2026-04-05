@@ -124,4 +124,20 @@ public class OrderController : ControllerBase
             return StatusCode(500, new { Error = "Failed to search orders" });
         }
     }
+
+    [HttpGet("populate")]
+    public async Task<IActionResult> PopulateSampleData()
+    {
+        try
+        {
+            // Create simulated data and populate the database
+            var order = await _orderService.PopulateSampleDataAsync(null);
+            return Ok(order);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error populating sample data");
+            return StatusCode(500, new { Error = "Failed to populate sample data" });
+        }
+    }
 }

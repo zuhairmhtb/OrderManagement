@@ -1,6 +1,8 @@
 using OrderManagement.Database.Commands.Order;
 using OrderManagement.Database.Constants;
+using OrderManagement.Database.Dtos.Customer;
 using OrderManagement.Database.Dtos.Order;
+using OrderManagement.Database.Models;
 
 namespace OrderManagement.Web.Interfaces;
 
@@ -20,4 +22,6 @@ public interface IOrderService
         int page = 1,
         int pageSize = 20
     );
+    Task<CustomerOrderDto> PopulateSampleDataAsync(CustomerProfileDto? customer);
+    Task<CustomerOrderDto> GetRandomOrderAsync();
 }

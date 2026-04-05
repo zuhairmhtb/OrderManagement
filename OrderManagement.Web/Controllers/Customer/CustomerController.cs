@@ -148,4 +148,19 @@ public class CustomerController : ControllerBase
             return StatusCode(500, new { Error = "Failed to search customers" });
         }
     }
+
+    [HttpGet("populate")]
+    public async Task<IActionResult> PopulateSampleData()
+    {
+        try
+        {
+            var customer = await _customerService.PopulateSampleDataAsync();
+            return Ok(customer);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error populating sample data");
+            return StatusCode(500, new { Error = "Failed to populate sample data" });
+        }
+    }
 }

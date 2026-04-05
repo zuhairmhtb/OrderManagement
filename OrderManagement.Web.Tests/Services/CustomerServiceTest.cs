@@ -364,10 +364,12 @@ public class CustomerServiceTest : IDisposable
         _mapperMock.Verify(m => m.Map<IEnumerable<CustomerProfileDto>>(It.IsAny<List<Customer>>()), Times.Once);
     }
 
+    
     protected virtual void Dispose(bool disposing)
     {
         if (disposing)
         {
+            _dbContext.Database.EnsureDeleted();
             _dbContext?.Dispose();
         }
     }

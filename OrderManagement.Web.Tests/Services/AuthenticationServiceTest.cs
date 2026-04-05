@@ -151,9 +151,10 @@ public class AuthenticationServiceTest : IDisposable
 
     protected virtual void Dispose(bool disposing)
     {
-        if (disposing)
+        if(disposing)
         {
-            _dbContext?.Dispose();
+            _dbContext.Database.EnsureDeleted();
+            _dbContext.Dispose();
         }
     }
 

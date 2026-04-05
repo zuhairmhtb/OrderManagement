@@ -10,7 +10,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Runtime.CompilerServices;
 
 namespace OrderManagement.Web.Tests.Services;
-public class ProductServiceTest
+public class ProductServiceTest : IDisposable
 {
     private readonly Mock<ILogger<OrderService>> _loggerMock;
     private readonly Mock<IMapper> _mapperMock;
@@ -42,5 +42,20 @@ public class ProductServiceTest
         // Assert
         Assert.NotNull(result);
         Assert.Equal(_dbContext.Products.Count(), result.Count());
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _dbContext.Database.EnsureDeleted();
+            _dbContext.Dispose();
+        }
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
     }
 }
