@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using OrderManagement.Database.Commands.Authentication;
 using OrderManagement.Database.Constants;
@@ -19,13 +20,13 @@ public class AuthenticationService : IAuthenticationService
     private readonly ILogger<AuthenticationService> _logger;
     private readonly IMapper _mapper;
     private readonly ApplicationDbContext _context;
-    private readonly IConfiguration _configuration;
+    private readonly IOptions<JwtConfig> _configuration;
 
     public AuthenticationService(
         ILogger<AuthenticationService> logger,
         IMapper mapper,
         ApplicationDbContext context,
-        IConfiguration configuration
+        IOptions<JwtConfig> configuration
     )
     {
         _logger = logger;
@@ -57,11 +58,8 @@ public class AuthenticationService : IAuthenticationService
                 return null;
             }
 
-            var jwtConfig = _configuration.GetSection("Jwt").Get<JwtConfig>()
-                ?? throw new InvalidOperationException("JWT configuration is missing.");
-
-            var token = GenerateJwtToken(customer, jwtConfig);
-            var expiresAt = DateTime.UtcNow.AddMinutes(jwtConfig.ExpirationMinutes);
+            var token = GenerateJwtToken(customer, _configuration.Value);
+            var expiresAt = DateTime.UtcNow.AddMinutes(_configuration.Value.ExpirationMinutes);
 
             _logger.LogInformation("Login successful for customer ID: {CustomerId}", customer.Id);
 
@@ -106,6 +104,13 @@ public class AuthenticationService : IAuthenticationService
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
+    public async Task<JwtSecurityToken> DecodeJwtTokenAsync(string token)
+    {
+        var handler = new JwtSecurityTokenHandler();
+        var jwtToken = handler.ReadJwtToken(token);
+        return await Task.FromResult(jwtToken);
+    }
+    
     public async Task<CustomerProfileDto> RegisterAsync(SignupCommand command, UserRole role)
     {
         try

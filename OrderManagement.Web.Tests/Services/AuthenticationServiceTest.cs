@@ -1,10 +1,12 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 using OrderManagement.Database.Commands.Authentication;
 using OrderManagement.Database.Constants;
 using OrderManagement.Database.Context;
+using OrderManagement.Database.Dtos.Configuration;
 using OrderManagement.Database.Dtos.Customer;
 using OrderManagement.Database.Models;
 using OrderManagement.Web.Services;
@@ -15,6 +17,7 @@ public class AuthenticationServiceTest : IDisposable
 {
     private readonly Mock<ILogger<AuthenticationService>> _loggerMock;
     private readonly Mock<IMapper> _mapperMock;
+    private readonly IOptions<JwtConfig> _configurationMock;
     private readonly ApplicationDbContext _dbContext;
     private readonly AuthenticationService _authenticationService;
 
@@ -22,6 +25,14 @@ public class AuthenticationServiceTest : IDisposable
     {
         _loggerMock = new Mock<ILogger<AuthenticationService>>();
         _mapperMock = new Mock<IMapper>();
+        _configurationMock = Options.Create(new JwtConfig()
+        {
+            Key = "TestSecretKeyForJwtTokenGeneration",
+            Issuer = "TestIssuer",
+            Audience = "TestAudience",
+            ExpirationMinutes = 60,
+            Scheme = "Bearer"
+        });
         
         // Use In-Memory Database for testing
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
@@ -29,7 +40,12 @@ public class AuthenticationServiceTest : IDisposable
             .Options;
         _dbContext = new ApplicationDbContext(options);
         
-        _authenticationService = new AuthenticationService(_loggerMock.Object, _mapperMock.Object, _dbContext);
+        _authenticationService = new AuthenticationService(
+            _loggerMock.Object, 
+            _mapperMock.Object, 
+            _dbContext,
+            _configurationMock
+        );
     }
 
     [Fact]
@@ -133,20 +149,45 @@ public class AuthenticationServiceTest : IDisposable
     }
 
     [Fact]
-    public async Task LoginAsync_ShouldFailOnDatabaseValidationError()
+    public async Task LoginAsync_ShouldGenerateToken()
     {
         // Arrange
+        var customer = new Customer
+        {
+            Id = Guid.NewGuid(),
+            Email = "user@example.com",
+            Password = BCrypt.Net.BCrypt.HashPassword("TestPassword123"),
+            Role = UserRole.Customer,
+            FirstName = "Jane",
+            LastName = "Smith",
+            PhoneNumber = "+1234567890"
+        };
+
         var command = new LoginCommand
         {
-            Email = "test@example.com",
+            Email = customer.Email,
             Password = "TestPassword123"
         };
+
+
+
+        await _dbContext.AddAsync(customer);
+        await _dbContext.SaveChangesAsync();
 
         // Act
         var result = await _authenticationService.LoginAsync(command);
 
         // Assert
-        Assert.False(result); // Current implementation always returns false
+        Assert.NotNull(result); // Current implementation always returns false
+        Assert.NotNull(result.Token);
+        
+        // var decodedToken = await _authenticationService.DecodeJwtTokenAsync(result.Token);
+
+        // Assert.Equal(_configurationMock.Issuer, decodedToken.Issuer);
+        // Assert.Equal(_configurationMock.Audience, decodedToken.Audiences.FirstOrDefault());
+        // Assert.True(decodedToken.Claims.Any(c => c.Type == "email" && c.Value == customer.Email));
+        // Assert.True(decodedToken.Claims.Any(c => c.Type == "role" && c.Value == customer.Role.ToString()));
+        
     }
 
     protected virtual void Dispose(bool disposing)

@@ -4,6 +4,7 @@ using Events.Dtos.Configuration;
 using MassTransit;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
 using OrderManagement.Database;
 using OrderManagement.Database.Dtos.Configuration;
 using OrderManagement.Web.Interfaces;
@@ -13,43 +14,8 @@ namespace OrderManagement.Web;
 
 public class Program
 {
-    public static void ConfigureServices(IServiceCollection services, IConfiguration configuration)
-    {
-        services.AddControllers().AddJsonOptions(options =>
-        {
-            options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
-        });
-        services.AddOpenApi();
-        services.AddEndpointsApiExplorer();
-        services.AddSwaggerGen(options =>
-        {
-            options.AddSecurityDefinition("Bearer", new Swashbuckle.AspNetCore.SwaggerGen.OpenApiSecurityScheme
-            {
-                Name = "Authorization",
-                Type = Swashbuckle.AspNetCore.SwaggerGen.SecuritySchemeType.Http,
-                Scheme = "Bearer",
-                BearerFormat = "JWT",
-                In = Swashbuckle.AspNetCore.SwaggerGen.ParameterLocation.Header,
-                Description = "Enter your JWT token. Example: Bearer {token}"
-            });
-            options.AddSecurityRequirement(new Swashbuckle.AspNetCore.SwaggerGen.OpenApiSecurityRequirement
-            {
-                {
-                    new Swashbuckle.AspNetCore.SwaggerGen.OpenApiSecurityScheme
-                    {
-                        Reference = new Swashbuckle.AspNetCore.SwaggerGen.OpenApiReference
-                        {
-                            Type = Swashbuckle.AspNetCore.SwaggerGen.ReferenceType.SecurityScheme,
-                            Id = "Bearer"
-                        }
-                    },
-                    Array.Empty<string>()
-                }
-            });
-        });
-
-        // JWT Authentication
-        var jwtConfig = configuration.GetSection("Jwt").Get<JwtConfig>()
+    public static void ConfigureJwt(IServiceCollection services, IConfigurationSection jwtSection) {
+        var jwtConfig = jwtSection.Get<JwtConfig>()
             ?? throw new InvalidOperationException("JWT configuration is missing.");
 
         services.AddAuthentication(options =>
@@ -70,6 +36,33 @@ public class Program
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtConfig.Key)),
                 ClockSkew = TimeSpan.Zero
             };
+        });
+    }
+    public static void ConfigureServices(IServiceCollection services, IConfigurationSection jwtSection)
+    {
+        var jwtConfig = jwtSection.Get<JwtConfig>()
+            ?? throw new InvalidOperationException("JWT configuration is missing.");
+        services.AddControllers().AddJsonOptions(options =>
+        {
+            options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        });
+        services.AddOpenApi();
+        services.AddEndpointsApiExplorer();
+        services.AddSwaggerGen(options =>
+        {
+            options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+            {
+                Name = "Authorization",
+                Type = SecuritySchemeType.Http,
+                Scheme = jwtConfig.Scheme,
+                BearerFormat = "JWT",
+                In = ParameterLocation.Header,
+                Description = "Enter your JWT token. Example: Bearer {token}"
+            });
+            options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+            {
+                [new OpenApiSecuritySchemeReference(jwtConfig.Scheme.ToLower(), document)] = []
+            });
         });
 
         services.AddAuthorization();
@@ -113,9 +106,16 @@ public class Program
         var builder = WebApplication.CreateBuilder(args);
 
         // Add services to the container.
+        var jwtConfig = builder.Configuration.GetSection("Jwt");
+        if(jwtConfig == null)
+        {
+            throw new InvalidOperationException("JWT configuration section is missing in appsettings.");
+        }
+        builder.Services.Configure<JwtConfig>(jwtConfig);
         DependencyInjection.Configure(builder.Services, builder.Configuration, typeof(Program).Assembly);
         ConfigureBroker(builder.Services, builder.Configuration);
-        ConfigureServices(builder.Services, builder.Configuration);
+        ConfigureServices(builder.Services, jwtConfig);
+        ConfigureJwt(builder.Services, jwtConfig);
         
 
         var app = builder.Build();
