@@ -1,3 +1,4 @@
+using System.Data;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -48,7 +49,16 @@ public class OrderService : IOrderService
         }
 
         order.OrderStatus = OrderStatus.Processing;
-        await _dbContext.SaveChangesAsync();
+        try
+        {
+            _dbContext.Orders.Update(order);
+            await _dbContext.SaveChangesAsync();    
+        } catch (DBConcurrencyException ex)
+        {
+            _logger.LogError(ex, "Concurrency error while processing order {orderId}.", command.OrderId);
+            throw new InvalidOperationException($"Order with ID {command.OrderId} could not be processed due to a concurrency conflict. Please try again.");
+        }
+        
 
          _logger.LogInformation("Calculating VAT, Shipping Cost, Additional Charges, and Total Price for order {orderId}.",
             command.OrderId);
