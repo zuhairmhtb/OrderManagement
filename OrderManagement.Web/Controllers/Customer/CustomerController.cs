@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OrderManagement.Database.Commands.Customer;
 using OrderManagement.Web.Interfaces;
@@ -23,6 +24,7 @@ public class CustomerController : ControllerBase
     /// <param name="command">Add address command</param>
     /// <returns>Success status</returns>
     [HttpPost("address")]
+    [Authorize]
     public async Task<IActionResult> AddAddress([FromBody] AddAddressCommand command)
     {
         try
@@ -43,6 +45,7 @@ public class CustomerController : ControllerBase
     /// <param name="command">Update address command</param>
     /// <returns>Success status</returns>
     [HttpPut("address")]
+    [Authorize]
     public async Task<IActionResult> UpdateAddress([FromBody] UpdateAddressCommand command)
     {
         try
@@ -63,6 +66,7 @@ public class CustomerController : ControllerBase
     /// <param name="command">Remove address command</param>
     /// <returns>Success status</returns>
     [HttpDelete("address")]
+    [Authorize]
     public async Task<IActionResult> RemoveAddress([FromBody] RemoveAddressCommand command)
     {
         try
@@ -83,6 +87,7 @@ public class CustomerController : ControllerBase
     /// <param name="command">Update profile command</param>
     /// <returns>Success status</returns>
     [HttpPut("profile")]
+    [Authorize]
     public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileCommand command)
     {
         try
@@ -103,6 +108,7 @@ public class CustomerController : ControllerBase
     /// <param name="customerId">Customer ID</param>
     /// <returns>Customer profile details</returns>
     [HttpGet("{customerId}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> GetCustomerProfile(Guid customerId)
     {
         try
@@ -126,6 +132,7 @@ public class CustomerController : ControllerBase
     /// <param name="pageSize">Page size (default: 20)</param>
     /// <returns>List of customers matching the criteria</returns>
     [HttpGet("search")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> SearchCustomers(
         [FromQuery] string? emailPattern = null,
         [FromQuery] string? namePattern = null,
@@ -150,6 +157,7 @@ public class CustomerController : ControllerBase
     }
 
     [HttpGet("populate")]
+    [Authorize]
     public async Task<IActionResult> PopulateSampleData()
     {
         try

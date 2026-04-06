@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OrderManagement.Database.Commands.Order;
 using OrderManagement.Database.Constants;
@@ -24,6 +25,7 @@ public class OrderController : ControllerBase
     /// <param name="command">Order placement command</param>
     /// <returns>Order status after placement</returns>
     [HttpPost("place")]
+    [Authorize]
     public async Task<IActionResult> PlaceOrder([FromBody] PlaceOrderCommand command)
     {
         try
@@ -44,6 +46,7 @@ public class OrderController : ControllerBase
     /// <param name="orderId">Order ID</param>
     /// <returns>Order details</returns>
     [HttpGet("{orderId}")]
+    [Authorize]
     public async Task<IActionResult> GetOrderDetails(Guid orderId)
     {
         try
@@ -64,6 +67,7 @@ public class OrderController : ControllerBase
     /// <param name="orderId">Order ID</param>
     /// <returns>Order status</returns>
     [HttpGet("{orderId}/status")]
+    [Authorize]
     public async Task<IActionResult> GetOrderStatus(Guid orderId)
     {
         try
@@ -92,6 +96,7 @@ public class OrderController : ControllerBase
     /// <param name="pageSize">Page size (default: 20)</param>
     /// <returns>List of orders matching the criteria</returns>
     [HttpGet("search")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> SearchOrders(
         [FromQuery] DateTime? placedAtStartRange = null,
         [FromQuery] DateTime? placedAtEndRange = null,
@@ -126,6 +131,7 @@ public class OrderController : ControllerBase
     }
 
     [HttpGet("populate")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> PopulateSampleData()
     {
         try

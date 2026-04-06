@@ -46,25 +46,49 @@ public class Program
         {
             options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
         });
-        services.AddOpenApi();
-        services.AddEndpointsApiExplorer();
-        services.AddSwaggerGen(options =>
+
+        var openApiInfo = new OpenApiInfo
         {
-            options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+            Version = "v1",
+            Title = "Order Management API",
+            Description = "API for managing orders, customers, and products."
+        };
+        var scheme = new OpenApiSecurityScheme
+        {
+            Name = "Authorization",
+            Type = SecuritySchemeType.Http,
+            Scheme = jwtConfig.Scheme,
+            BearerFormat = "JWT",
+            Description = "Enter your JWT token without 'Bearer' keyword. Example: {token}"
+        };
+        services.AddOpenApi(options =>
+        {
+            options.AddDocumentTransformer((doc, context, cancellationToken) =>
             {
-                Name = "Authorization",
-                Type = SecuritySchemeType.Http,
-                Scheme = jwtConfig.Scheme,
-                BearerFormat = "JWT",
-                In = ParameterLocation.Header,
-                Description = "Enter your JWT token. Example: Bearer {token}"
-            });
-            options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
-            {
-                [new OpenApiSecuritySchemeReference(jwtConfig.Scheme.ToLower(), document)] = []
+                doc.Info = openApiInfo;
+                doc.Components ??= new OpenApiComponents();
+                doc.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
+                doc.Components.SecuritySchemes.Add(jwtConfig.Scheme, scheme);
+
+                doc.Security ??= new List<OpenApiSecurityRequirement>();
+                doc.Security.Add(new OpenApiSecurityRequirement
+                {
+                    [ new OpenApiSecuritySchemeReference(jwtConfig.Scheme, doc) ] = []
+                });
+
+               return Task.CompletedTask; 
             });
         });
-
+        services.AddSwaggerGen(options =>
+        {
+            options.SwaggerDoc("v1", openApiInfo);
+            options.AddSecurityDefinition(jwtConfig.Scheme, scheme);
+            options.AddSecurityRequirement(doc => new OpenApiSecurityRequirement
+            {
+                [ new OpenApiSecuritySchemeReference(jwtConfig.Scheme, doc) ] = []
+            });
+        });
+        services.AddEndpointsApiExplorer();
         services.AddAuthorization();
 
         services.AddScoped<ICustomerService, CustomerService>();

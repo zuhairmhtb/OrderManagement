@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OrderManagement.Database.Commands.Authentication;
 using OrderManagement.Web.Interfaces;
@@ -7,6 +8,7 @@ namespace OrderManagement.Web.Controllers.Authentication;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class PasswordUpdateController : ControllerBase
 {
     private readonly ILogger<PasswordUpdateController> _logger;

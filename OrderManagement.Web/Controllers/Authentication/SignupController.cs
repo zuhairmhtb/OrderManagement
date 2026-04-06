@@ -17,6 +17,29 @@ public class SignupController : ControllerBase
         _authenticationService = authenticationService;
     }
 
+    [HttpPost("admin")]
+    public async Task<IActionResult> SignupAdmin(SignupCommand command)
+    {
+        try
+        {
+            // Signup logic would go here, but is out of scope for this task.
+            var result = await _authenticationService.RegisterAsync(command, Database.Constants.UserRole.Admin);
+            if(result != null)
+            {
+                return Ok(result);
+            }
+            else
+            {
+                return BadRequest(new { Error = "Signup failed." });   
+            }
+        } catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during admin signup");
+            return StatusCode(500, new { Error = "Signup failed" });
+        }
+        
+    }
+
     [HttpPost]
     public async Task<IActionResult> Signup(SignupCommand command)
     {
