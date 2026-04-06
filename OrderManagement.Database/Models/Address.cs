@@ -32,4 +32,7 @@ public class Address
     public Guid CustomerId { get; set; }
     [JsonIgnore]
     public Customer? CustomerInfo { get; set;}
+
+    [Timestamp]
+    public byte[] RowVersion { get; set; } = BitConverter.GetBytes(DateTime.UtcNow.Ticks);
 }

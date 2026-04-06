@@ -94,4 +94,7 @@ public class Order
 
     // Navigation property
     public List<PurchasedProduct> Products { get; set; } = new List<PurchasedProduct>();
+
+    [Timestamp]
+    public byte[] RowVersion { get; set; } = BitConverter.GetBytes(DateTime.UtcNow.Ticks);
 }

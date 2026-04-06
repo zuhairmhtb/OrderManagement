@@ -27,4 +27,7 @@ public class Product
     
     [MaxLength(1000)]
     public string? Description { get; set; }
+
+    [Timestamp]
+    public byte[] RowVersion { get; set; } = BitConverter.GetBytes(DateTime.UtcNow.Ticks);
 }

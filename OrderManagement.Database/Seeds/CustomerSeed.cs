@@ -53,7 +53,7 @@ public static class CustomerSeed
                 Role = UserRole.Customer,
                 FirstName = firstName,
                 LastName = lastName,
-                PhoneNumber = phoneNumber
+                PhoneNumber = phoneNumber,
             });
         }
 

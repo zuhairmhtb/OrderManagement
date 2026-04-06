@@ -32,5 +32,8 @@ public class Customer
 
     // Navigation property
     public IEnumerable<Address> Addresses { get; set; } = new List<Address>();
+
+    [Timestamp]
+    public byte[] RowVersion { get; set; } = BitConverter.GetBytes(DateTime.UtcNow.Ticks);
     
 }

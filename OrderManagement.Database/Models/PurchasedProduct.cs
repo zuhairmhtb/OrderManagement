@@ -36,4 +36,7 @@ public class PurchasedProduct
 
     [JsonIgnore]
     public Order? OrderInfo { get; set; }
+
+    [Timestamp]
+    public byte[] RowVersion { get; set; } = BitConverter.GetBytes(DateTime.UtcNow.Ticks);
 }

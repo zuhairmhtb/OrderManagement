@@ -46,6 +46,12 @@ namespace OrderManagement.Web.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
                     b.Property<string>("State")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
@@ -99,6 +105,12 @@ namespace OrderManagement.Web.Migrations
                     b.Property<int>("Role")
                         .HasColumnType("int");
 
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Email")
@@ -117,7 +129,8 @@ namespace OrderManagement.Web.Migrations
                             LastName = "Smith",
                             Password = "JohSmi123!",
                             PhoneNumber = "+1-555-123-4567",
-                            Role = 0
+                            Role = 0,
+                            RowVersion = new byte[] { 101, 81, 82, 184, 207, 147, 222, 8 }
                         },
                         new
                         {
@@ -127,7 +140,8 @@ namespace OrderManagement.Web.Migrations
                             LastName = "Johnson",
                             Password = "SarJoh456!",
                             PhoneNumber = "+1-555-234-5678",
-                            Role = 0
+                            Role = 0,
+                            RowVersion = new byte[] { 70, 89, 82, 184, 207, 147, 222, 8 }
                         },
                         new
                         {
@@ -137,7 +151,8 @@ namespace OrderManagement.Web.Migrations
                             LastName = "Brown",
                             Password = "MicBro789!",
                             PhoneNumber = "+1-555-345-6789",
-                            Role = 0
+                            Role = 0,
+                            RowVersion = new byte[] { 85, 89, 82, 184, 207, 147, 222, 8 }
                         },
                         new
                         {
@@ -147,7 +162,8 @@ namespace OrderManagement.Web.Migrations
                             LastName = "Davis",
                             Password = "EmmDav101!",
                             PhoneNumber = "+1-555-456-7890",
-                            Role = 0
+                            Role = 0,
+                            RowVersion = new byte[] { 91, 89, 82, 184, 207, 147, 222, 8 }
                         },
                         new
                         {
@@ -157,7 +173,8 @@ namespace OrderManagement.Web.Migrations
                             LastName = "Wilson",
                             Password = "DavWil202!",
                             PhoneNumber = "+1-555-567-8901",
-                            Role = 0
+                            Role = 0,
+                            RowVersion = new byte[] { 97, 89, 82, 184, 207, 147, 222, 8 }
                         },
                         new
                         {
@@ -167,7 +184,8 @@ namespace OrderManagement.Web.Migrations
                             LastName = "Garcia",
                             Password = "JenGar303!",
                             PhoneNumber = "+1-555-678-9012",
-                            Role = 0
+                            Role = 0,
+                            RowVersion = new byte[] { 107, 89, 82, 184, 207, 147, 222, 8 }
                         },
                         new
                         {
@@ -177,7 +195,8 @@ namespace OrderManagement.Web.Migrations
                             LastName = "Martinez",
                             Password = "RobMar404!",
                             PhoneNumber = "+1-555-789-0123",
-                            Role = 0
+                            Role = 0,
+                            RowVersion = new byte[] { 127, 89, 82, 184, 207, 147, 222, 8 }
                         },
                         new
                         {
@@ -187,7 +206,8 @@ namespace OrderManagement.Web.Migrations
                             LastName = "Anderson",
                             Password = "LisAnd505!",
                             PhoneNumber = "+1-555-890-1234",
-                            Role = 0
+                            Role = 0,
+                            RowVersion = new byte[] { 133, 89, 82, 184, 207, 147, 222, 8 }
                         },
                         new
                         {
@@ -197,7 +217,8 @@ namespace OrderManagement.Web.Migrations
                             LastName = "Taylor",
                             Password = "WilTay606!",
                             PhoneNumber = "+1-555-901-2345",
-                            Role = 0
+                            Role = 0,
+                            RowVersion = new byte[] { 138, 89, 82, 184, 207, 147, 222, 8 }
                         },
                         new
                         {
@@ -207,7 +228,8 @@ namespace OrderManagement.Web.Migrations
                             LastName = "Thomas",
                             Password = "JesTho707!",
                             PhoneNumber = "+1-555-012-3456",
-                            Role = 0
+                            Role = 0,
+                            RowVersion = new byte[] { 144, 89, 82, 184, 207, 147, 222, 8 }
                         });
                 });
 
@@ -270,6 +292,12 @@ namespace OrderManagement.Web.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
 
                     b.Property<string>("ShippingCity")
                         .IsRequired()
@@ -352,6 +380,12 @@ namespace OrderManagement.Web.Migrations
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
 
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Name")
@@ -369,7 +403,8 @@ namespace OrderManagement.Web.Migrations
                             Description = "High-performance laptop with M2 Pro chip, 16GB RAM and 512GB SSD.",
                             Name = "MacBook Pro 16\"",
                             Price = 2499.99m,
-                            Quantity = 15
+                            Quantity = 15,
+                            RowVersion = new byte[] { 184, 71, 81, 184, 207, 147, 222, 8 }
                         },
                         new
                         {
@@ -378,7 +413,8 @@ namespace OrderManagement.Web.Migrations
                             Description = "Latest iPhone with A17 Pro chip, titanium design, and advanced camera system.",
                             Name = "iPhone 15 Pro",
                             Price = 999.99m,
-                            Quantity = 25
+                            Quantity = 25,
+                            RowVersion = new byte[] { 23, 78, 81, 184, 207, 147, 222, 8 }
                         },
                         new
                         {
@@ -387,7 +423,8 @@ namespace OrderManagement.Web.Migrations
                             Description = "Industry-leading noise canceling headphones with 30-hour battery life.",
                             Name = "Sony WH-1000XM5",
                             Price = 399.99m,
-                            Quantity = 20
+                            Quantity = 20,
+                            RowVersion = new byte[] { 31, 78, 81, 184, 207, 147, 222, 8 }
                         },
                         new
                         {
@@ -396,7 +433,8 @@ namespace OrderManagement.Web.Migrations
                             Description = "Advanced smartwatch with health monitoring and fitness tracking capabilities.",
                             Name = "Apple Watch Series 9",
                             Price = 399.99m,
-                            Quantity = 30
+                            Quantity = 30,
+                            RowVersion = new byte[] { 33, 78, 81, 184, 207, 147, 222, 8 }
                         },
                         new
                         {
@@ -405,7 +443,8 @@ namespace OrderManagement.Web.Migrations
                             Description = "Powerful tablet with M2 chip, Liquid Retina XDR display, and Apple Pencil support.",
                             Name = "iPad Pro 12.9\"",
                             Price = 1099.99m,
-                            Quantity = 18
+                            Quantity = 18,
+                            RowVersion = new byte[] { 34, 78, 81, 184, 207, 147, 222, 8 }
                         },
                         new
                         {
@@ -414,7 +453,8 @@ namespace OrderManagement.Web.Migrations
                             Description = "Professional 4K monitor with USB-C connectivity and color accuracy certification.",
                             Name = "Dell UltraSharp 27\" 4K Monitor",
                             Price = 649.99m,
-                            Quantity = 12
+                            Quantity = 12,
+                            RowVersion = new byte[] { 41, 78, 81, 184, 207, 147, 222, 8 }
                         },
                         new
                         {
@@ -423,7 +463,8 @@ namespace OrderManagement.Web.Migrations
                             Description = "Wireless mouse with ultra-fast scrolling and customizable buttons for productivity.",
                             Name = "Logitech MX Master 3S",
                             Price = 99.99m,
-                            Quantity = 40
+                            Quantity = 40,
+                            RowVersion = new byte[] { 42, 78, 81, 184, 207, 147, 222, 8 }
                         },
                         new
                         {
@@ -432,7 +473,8 @@ namespace OrderManagement.Web.Migrations
                             Description = "RGB mechanical keyboard with Cherry MX switches and programmable macros.",
                             Name = "Mechanical Gaming Keyboard",
                             Price = 149.99m,
-                            Quantity = 35
+                            Quantity = 35,
+                            RowVersion = new byte[] { 43, 78, 81, 184, 207, 147, 222, 8 }
                         },
                         new
                         {
@@ -441,7 +483,8 @@ namespace OrderManagement.Web.Migrations
                             Description = "360-degree Bluetooth speaker with deep bass and 16-hour battery life.",
                             Name = "Bose SoundLink Revolve+",
                             Price = 299.99m,
-                            Quantity = 22
+                            Quantity = 22,
+                            RowVersion = new byte[] { 44, 78, 81, 184, 207, 147, 222, 8 }
                         },
                         new
                         {
@@ -450,7 +493,8 @@ namespace OrderManagement.Web.Migrations
                             Description = "Full-frame mirrorless camera with 24.2MP sensor and advanced autofocus system.",
                             Name = "Canon EOS R6 Mark II",
                             Price = 2499.99m,
-                            Quantity = 8
+                            Quantity = 8,
+                            RowVersion = new byte[] { 46, 78, 81, 184, 207, 147, 222, 8 }
                         });
                 });
 
@@ -481,6 +525,12 @@ namespace OrderManagement.Web.Migrations
 
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
 
                     b.HasKey("Id");
 

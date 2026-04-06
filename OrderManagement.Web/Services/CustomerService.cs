@@ -86,7 +86,17 @@ public class CustomerService : ICustomerService
 
         // Partial update: AutoMapper skips null source values (configured via ForAllMembers in MappingProfile)
         _mapper.Map(command, address);
-        await _context.SaveChangesAsync();
+        
+		try
+		{
+			_context.CustomerAddresses.Update(address);
+			await _context.SaveChangesAsync();
+		}
+		catch (DbUpdateConcurrencyException ex)
+		{
+			_logger.LogError(ex, "Concurrency error occurred while updating address ID: {AddressId} for customer ID: {CustomerId}", command.AddressId, command.CustomerId);
+			throw new InvalidOperationException("The address was modified by another process. Please reload and try again.");
+		}
 
 		_logger.LogInformation("Successfully updated address ID: {AddressId} for customer ID: {CustomerId}", command.AddressId, command.CustomerId);
 
@@ -107,8 +117,15 @@ public class CustomerService : ICustomerService
 
         // Partial update: AutoMapper skips null source values (configured via ForAllMembers in MappingProfile)
         _mapper.Map(command, customer);
-		 _context.Update(customer);
-        await _context.SaveChangesAsync();
+		 try
+		{
+			_context.Update(customer);
+        	await _context.SaveChangesAsync();
+		} catch (DbUpdateConcurrencyException ex)
+		{
+			_logger.LogError(ex, "Concurrency error occurred while updating profile for customer ID: {CustomerId}", command.CustomerId);
+			throw new InvalidOperationException("The profile was modified by another process. Please reload and try again.");
+		}
 
 		_logger.LogInformation("Successfully updated profile for customer ID: {CustomerId}", command.CustomerId);
 
