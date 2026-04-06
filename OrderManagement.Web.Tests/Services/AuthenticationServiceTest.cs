@@ -1,3 +1,5 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -181,13 +183,12 @@ public class AuthenticationServiceTest : IDisposable
         Assert.NotNull(result); // Current implementation always returns false
         Assert.NotNull(result.Token);
         
-        // var decodedToken = await _authenticationService.DecodeJwtTokenAsync(result.Token);
+        var decodedToken = await _authenticationService.DecodeJwtTokenAsync(result.Token);
 
-        // Assert.Equal(_configurationMock.Issuer, decodedToken.Issuer);
-        // Assert.Equal(_configurationMock.Audience, decodedToken.Audiences.FirstOrDefault());
-        // Assert.True(decodedToken.Claims.Any(c => c.Type == "email" && c.Value == customer.Email));
-        // Assert.True(decodedToken.Claims.Any(c => c.Type == "role" && c.Value == customer.Role.ToString()));
-        
+        Assert.Equal(_configurationMock.Value.Issuer, decodedToken.Issuer);
+        Assert.Equal(_configurationMock.Value.Audience, decodedToken.Audiences.FirstOrDefault());
+        Assert.Contains(decodedToken.Claims, c => c.Type == ClaimTypes.Role && c.Value == UserRole.Customer.ToString());
+        Assert.Contains(decodedToken.Claims, c => c.Value == customer.Email.ToString());
     }
 
     protected virtual void Dispose(bool disposing)
