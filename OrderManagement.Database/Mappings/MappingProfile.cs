@@ -27,7 +27,7 @@ public class MappingProfile : Profile
             .ForAllMembers(opt => opt.Condition((src, dst, srcMember) => srcMember != null));
 
         // Map Customer to CustomerProfileDto
-        CreateMap<Customer, CustomerProfileDto>();
+        CreateMap<Customer, CustomerProfileDto>().ReverseMap();
 
         // Map UpdateProfileCommand to Customer (partial update: null source values are skipped)
         CreateMap<UpdateProfileCommand, Customer>()

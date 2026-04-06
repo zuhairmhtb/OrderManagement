@@ -16,7 +16,6 @@ public class CustomerServiceTest : IDisposable
 {
     private readonly Mock<ILogger<CustomerService>> _loggerMock;
     private readonly Mock<IMapper> _mapperMock;
-    private readonly Mock<IPublishEndpoint> _publishEndpointMock;
     private readonly ApplicationDbContext _dbContext;
     private readonly CustomerService _customerService;
 
@@ -24,7 +23,6 @@ public class CustomerServiceTest : IDisposable
     {
         _loggerMock = new Mock<ILogger<CustomerService>>();
         _mapperMock = new Mock<IMapper>();
-        _publishEndpointMock = new Mock<IPublishEndpoint>();
         
         // Use In-Memory Database for testing
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
@@ -32,7 +30,7 @@ public class CustomerServiceTest : IDisposable
             .Options;
         _dbContext = new ApplicationDbContext(options);
         
-        _customerService = new CustomerService(_loggerMock.Object, _mapperMock.Object, _publishEndpointMock.Object, _dbContext);
+        _customerService = new CustomerService(_loggerMock.Object, _mapperMock.Object, _dbContext);
     }
 
     [Fact]
@@ -378,12 +376,56 @@ public class CustomerServiceTest : IDisposable
             State = "Test State"
         };
 
+        await _dbContext.Customers.AddAsync(new Customer
+        {
+            Id = command.CustomerId,
+            Email = "customer@example.com",
+            Password = "hashedpassword",
+            Role = UserRole.Customer,
+            FirstName = "Test",
+            LastName = "Customer",
+            PhoneNumber = "+1234567890"
+        });
+        await _dbContext.SaveChangesAsync();
+
+        _mapperMock.Setup(m => m.Map<Address>(It.IsAny<AddAddressCommand>()))
+            .Returns((AddAddressCommand cmd) => new Address
+            {
+                Id = Guid.NewGuid(),
+                CustomerId = cmd.CustomerId,
+                Street = cmd.Street,
+                City = cmd.City,
+                PostalCode = cmd.PostalCode,
+                Country = cmd.Country,
+                State = cmd.State
+            });
+
+        _mapperMock.Setup(m => m.Map<CustomerProfileDto>(It.IsAny<Customer>()))
+            .Returns((Customer c) => new CustomerProfileDto
+            {
+                Id = c.Id,
+                Email = c.Email,
+                FirstName = c.FirstName,
+                LastName = c.LastName,
+                PhoneNumber = c.PhoneNumber,
+                Role = c.Role,
+                Addresses = c.Addresses.Select(a => new AddressDto
+                {
+                    Id = a.Id,
+                    Street = a.Street,
+                    City = a.City,
+                    PostalCode = a.PostalCode,
+                    Country = a.Country,
+                    State = a.State
+                }).ToList()
+            });
+
         // Act
         var result = await _customerService.AddAddressAsync(command);
 
         // Assert
-        Assert.True(result);
-        _publishEndpointMock.Verify(x => x.Publish(It.IsAny<AddAddressCommand>(), It.IsAny<CancellationToken>()), Times.Once);
+        Assert.Equal(command.PostalCode, result.Addresses.First().PostalCode);
+        Assert.NotNull(_dbContext.CustomerAddresses.FirstOrDefault(a => a.CustomerId == command.CustomerId && a.Id == result.Addresses.First().Id));
     }
 
     [Fact]
@@ -392,15 +434,57 @@ public class CustomerServiceTest : IDisposable
         // Arrange
         var command = new RemoveAddressCommand
         {
-            AddressId = Guid.NewGuid()
+            AddressId = Guid.NewGuid(),
+            CustomerId = Guid.NewGuid() 
         };
+
+        var address = new Address
+        {
+            Id = command.AddressId,
+            CustomerId = command.CustomerId,
+            Street = "123 Main Street",
+            City = "Test City",
+            PostalCode = "12345",
+            Country = "USA",
+            State = "Test State"
+        };
+        var customer = new Customer
+        {
+            Id = command.CustomerId,
+            Email = "customer@example.com",
+            Password = "hashedpassword",
+            Role = UserRole.Customer,
+            FirstName = "Test",
+            LastName = "Customer",
+            PhoneNumber = "+1234567890",
+            Addresses = new List<Address> { address }
+        };
+
+        await _dbContext.Customers.AddAsync(customer);
+        await _dbContext.CustomerAddresses.AddAsync(address);
+        await _dbContext.SaveChangesAsync();
+
+        _mapperMock.Setup(m => m.Map<CustomerProfileDto>(It.IsAny<Customer>()))
+            .Returns((Customer c) => new CustomerProfileDto
+            {
+                Id = c.Id,
+                Email = c.Email,
+                FirstName = c.FirstName,
+                LastName = c.LastName,
+                PhoneNumber = c.PhoneNumber,
+                Role = c.Role,
+                Addresses = new List<AddressDto>() // Simulate address removal by returning empty list
+            });
 
         // Act
         var result = await _customerService.RemoveAddressAsync(command);
 
         // Assert
-        Assert.True(result);
-        _publishEndpointMock.Verify(x => x.Publish(It.IsAny<RemoveAddressCommand>(), It.IsAny<CancellationToken>()), Times.Once);
+        Assert.NotNull(result);
+        Assert.Empty(_dbContext.CustomerAddresses
+        .Where(a => a.Id == command.AddressId && a.CustomerId == command.CustomerId)
+        .ToList()
+        );
     }
 
     [Fact]
@@ -410,6 +494,7 @@ public class CustomerServiceTest : IDisposable
         var command = new UpdateAddressCommand
         {
             AddressId = Guid.NewGuid(),
+            CustomerId = Guid.NewGuid(),
             Street = "456 Updated Street",
             City = "Updated City",
             PostalCode = "54321",
@@ -417,12 +502,69 @@ public class CustomerServiceTest : IDisposable
             State = "Updated State"
         };
 
+        var oldAddress = new Address
+        {
+            Id = command.AddressId,
+            CustomerId = command.CustomerId,
+            Street = "123 Main Street",
+            City = "Test City",
+            PostalCode = "12345",
+            Country = "USA",
+            State = "Test State"
+        };
+        var customer = new Customer
+        {
+            Id = oldAddress.CustomerId,
+            Email = "customer@example.com",
+            Password = "hashedpassword",
+            Role = UserRole.Customer,
+            FirstName = "Test",
+            LastName = "Customer",
+            PhoneNumber = "+1234567890",
+            Addresses = new List<Address> { oldAddress }
+        };
+
+        await _dbContext.Customers.AddAsync(customer);
+        await _dbContext.CustomerAddresses.AddAsync(oldAddress);
+        await _dbContext.SaveChangesAsync();
+
+        _mapperMock.Setup(m => m.Map(command, It.IsAny<Address>()))
+            .Callback((UpdateAddressCommand cmd, Address addr) =>
+            {
+                addr.Street = cmd.Street ?? addr.Street;
+                addr.City = cmd.City ?? addr.City;
+                addr.PostalCode = cmd.PostalCode ?? addr.PostalCode;
+                addr.Country = cmd.Country ?? addr.Country;
+                addr.State = cmd.State ?? addr.State;
+            });
+        _mapperMock.Setup(m => m.Map<CustomerProfileDto>(It.IsAny<Customer>()))
+            .Returns((Customer c) => new CustomerProfileDto
+            {
+                Id = c.Id,
+                Email = c.Email,
+                FirstName = c.FirstName,
+                LastName = c.LastName,
+                PhoneNumber = c.PhoneNumber,
+                Role = c.Role,
+                Addresses = c.Addresses.Select(a => new AddressDto
+                {
+                    Id = a.Id,
+                    Street = command.Street,
+                    City = command.City,
+                    PostalCode = command.PostalCode,
+                    Country = command.Country,
+                    State = command.State
+                }).ToList()
+            });
+
         // Act
         var result = await _customerService.UpdateAddressAsync(command);
 
         // Assert
-        Assert.True(result);
-        _publishEndpointMock.Verify(x => x.Publish(It.IsAny<UpdateAddressCommand>(), It.IsAny<CancellationToken>()), Times.Once);
+        Assert.NotNull(result);
+        Assert.Equal(command.Street, result.Addresses.First().Street);
+        Assert.Equal(command.City, result.Addresses.First().City);
+        Assert.Equal(command.City, _dbContext.CustomerAddresses.First().City);
     }
 
     [Fact]
@@ -437,12 +579,50 @@ public class CustomerServiceTest : IDisposable
             PhoneNumber = "+1987654321"
         };
 
+        var oldCustomer = new Customer
+        {
+            Id = command.CustomerId,
+            Email = "customer@example.com",
+            Password = "hashedpassword",
+            Role = UserRole.Customer,
+            FirstName = "John",
+            LastName = "Doe",
+            PhoneNumber = "+1234567890"
+        };
+
+        await _dbContext.Customers.AddAsync(oldCustomer);
+        await _dbContext.SaveChangesAsync();
+
+        _mapperMock.Setup(m => m.Map(
+            It.IsAny<UpdateProfileCommand>(),
+            It.IsAny<Customer>()
+        )).Returns((UpdateProfileCommand cmd, Customer cust) =>
+        {
+            cust.FirstName = cmd.FirstName ?? cust.FirstName;
+            cust.LastName = cmd.LastName ?? cust.LastName;
+            cust.PhoneNumber = cmd.PhoneNumber ?? cust.PhoneNumber;
+            return cust;
+        });
+        _mapperMock.Setup(m => m.Map<CustomerProfileDto>(It.IsAny<Customer>()))
+            .Returns((Customer c) => new CustomerProfileDto
+            {
+                Id = c.Id,
+                Email = c.Email,
+                FirstName = c.FirstName,
+                LastName = c.LastName,
+                PhoneNumber = c.PhoneNumber,
+                Role = c.Role
+            });
+
         // Act
         var result = await _customerService.UpdateProfileAsync(command);
 
         // Assert
-        Assert.True(result);
-        _publishEndpointMock.Verify(x => x.Publish(It.IsAny<UpdateProfileCommand>(), It.IsAny<CancellationToken>()), Times.Once);
+        Assert.NotNull(result);
+        Assert.Equal(command.FirstName, result.FirstName);
+        Assert.Equal(command.FirstName, _dbContext.Customers.First().FirstName);
+        Assert.Equal(command.LastName, result.LastName);
+        Assert.Equal(command.LastName, _dbContext.Customers.First().LastName);
     }
 
     

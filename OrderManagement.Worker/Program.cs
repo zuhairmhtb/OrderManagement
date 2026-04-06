@@ -48,7 +48,6 @@ public class Program
             // Add other logging providers as needed
             
         });
-        services.AddScoped<ICustomerService, CustomerService>();
         services.AddScoped<IOrderService, OrderService>();
     }
 

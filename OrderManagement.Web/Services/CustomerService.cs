@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using OrderManagement.Database.Commands.Customer;
 using OrderManagement.Database.Context;
 using OrderManagement.Database.Dtos.Customer;
+using OrderManagement.Database.Models;
 using OrderManagement.Database.Seeds;
 using OrderManagement.Web.Interfaces;
 
@@ -13,39 +14,98 @@ public class CustomerService : ICustomerService
 {
     private readonly ILogger<CustomerService> _logger;
     private readonly IMapper _mapper;
-    private readonly IPublishEndpoint _publishEndpoint;
     private readonly ApplicationDbContext _context;
 
-    public CustomerService(ILogger<CustomerService> logger, IMapper mapper, IPublishEndpoint publishEndpoint, ApplicationDbContext context)
+    public CustomerService(ILogger<CustomerService> logger, IMapper mapper, ApplicationDbContext context)
     {
         _logger = logger;
         _mapper = mapper;
-        _publishEndpoint = publishEndpoint;
         _context = context;
     }
 
-	public async Task<bool> AddAddressAsync(AddAddressCommand command)
+	/// <summary>
+    /// Adds a new address for an existing customer.
+    /// Verifies the customer exists before inserting to avoid a silent FK violation.
+    /// </summary>
+    public async Task<CustomerProfileDto> AddAddressAsync(AddAddressCommand command)
+    {
+        // AnyAsync: single EXISTS query – does not load the entity into memory
+        bool customerExists = await _context.Customers
+            .AnyAsync(c => c.Id == command.CustomerId);
+
+        if (!customerExists)
+            throw new KeyNotFoundException($"Customer '{command.CustomerId}' was not found.");
+
+        var address = _mapper.Map<Address>(command);
+
+        await _context.CustomerAddresses.AddAsync(address);
+        await _context.SaveChangesAsync();
+
+        return _mapper.Map<CustomerProfileDto>(await _context.Customers
+			.AsNoTracking()
+			.Include(c => c.Addresses)
+			.FirstAsync(c => c.Id == command.CustomerId));
+    }
+
+	public async Task<CustomerProfileDto> RemoveAddressAsync(RemoveAddressCommand command)
 	{
-		await _publishEndpoint.Publish(command);
-		return true;
+		// Single query with ownership check – avoids a separate customer lookup
+        var address = await _context.CustomerAddresses
+            .FirstOrDefaultAsync(a => a.Id == command.AddressId && a.CustomerId == command.CustomerId);
+
+        if (address is null)
+            throw new KeyNotFoundException(
+                $"Address '{command.AddressId}' for customer '{command.CustomerId}' was not found.");
+
+        // Partial update: AutoMapper skips null source values (configured via ForAllMembers in MappingProfile)
+        _context.CustomerAddresses.Remove(address);
+        await _context.SaveChangesAsync();
+
+		return _mapper.Map<CustomerProfileDto>(await _context.Customers
+			.AsNoTracking()
+			.Include(c => c.Addresses)
+			.FirstAsync(c => c.Id == command.CustomerId));
+
 	}
 
-	public async Task<bool> RemoveAddressAsync(RemoveAddressCommand command)
+	public async Task<CustomerProfileDto> UpdateAddressAsync(UpdateAddressCommand command)
 	{
-		await _publishEndpoint.Publish(command);
-		return true;
+		// Single query with ownership check – avoids a separate customer lookup
+        var address = await _context.CustomerAddresses
+            .FirstOrDefaultAsync(a => a.Id == command.AddressId && a.CustomerId == command.CustomerId);
+
+        if (address is null)
+            throw new KeyNotFoundException(
+                $"Address '{command.AddressId}' for customer '{command.CustomerId}' was not found.");
+
+        // Partial update: AutoMapper skips null source values (configured via ForAllMembers in MappingProfile)
+        _mapper.Map(command, address);
+
+        await _context.SaveChangesAsync();
+
+		return _mapper.Map<CustomerProfileDto>(await _context.Customers
+			.AsNoTracking()
+			.Include(c => c.Addresses)
+			.FirstAsync(c => c.Id == command.CustomerId));
 	}
 
-	public async Task<bool> UpdateAddressAsync(UpdateAddressCommand command)
+	public async Task<CustomerProfileDto> UpdateProfileAsync(UpdateProfileCommand command)
 	{
-		await _publishEndpoint.Publish(command);
-		return true;
-	}
+		// FindAsync uses PK – fastest EF lookup path
+        var customer = await _context.Customers.FindAsync(command.CustomerId);
 
-	public async Task<bool> UpdateProfileAsync(UpdateProfileCommand command)
-	{
-		await _publishEndpoint.Publish(command);
-		return true;
+        if (customer is null)
+            throw new KeyNotFoundException($"Customer '{command.CustomerId}' was not found.");
+
+        // Partial update: AutoMapper skips null source values (configured via ForAllMembers in MappingProfile)
+        _mapper.Map(command, customer);
+		 _context.Update(customer);
+        await _context.SaveChangesAsync();
+
+        return _mapper.Map<CustomerProfileDto>(await _context.Customers
+			.AsNoTracking()
+			.FirstAsync(c => c.Id == command.CustomerId)
+			);
 	}
 
     public async Task<CustomerProfileDto> GetCustomerProfileAsync(Guid customerId)

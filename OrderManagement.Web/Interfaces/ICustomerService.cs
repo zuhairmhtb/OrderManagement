@@ -7,10 +7,10 @@ namespace OrderManagement.Web.Interfaces;
 
 public interface ICustomerService
 {
-    Task<bool> AddAddressAsync(AddAddressCommand command);
-    Task<bool> UpdateAddressAsync(UpdateAddressCommand command);
-    Task<bool> RemoveAddressAsync(RemoveAddressCommand command);
-    Task<bool> UpdateProfileAsync(UpdateProfileCommand command);
+    Task<CustomerProfileDto> AddAddressAsync(AddAddressCommand command);
+    Task<CustomerProfileDto> UpdateAddressAsync(UpdateAddressCommand command);
+    Task<CustomerProfileDto> RemoveAddressAsync(RemoveAddressCommand command);
+    Task<CustomerProfileDto> UpdateProfileAsync(UpdateProfileCommand command);
 
     Task<CustomerProfileDto> GetCustomerProfileAsync(Guid customerId);
     Task<IEnumerable<CustomerProfileDto>> SearchCustomersAsync(
