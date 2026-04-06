@@ -6,8 +6,8 @@ namespace OrderManagement.Web.Interfaces;
 
 public interface IAuthenticationService
 {
-    Task<bool> LoginAsync(LoginCommand command);
-    
+    Task<LoginResponseDto?> LoginAsync(LoginCommand command);
+
     Task<CustomerProfileDto> RegisterAsync(SignupCommand command, UserRole role);
     Task<bool> UpdatePasswordAsync(UpdatePasswordCommand command);
 }
