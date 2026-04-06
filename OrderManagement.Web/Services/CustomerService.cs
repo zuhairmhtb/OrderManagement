@@ -29,6 +29,7 @@ public class CustomerService : ICustomerService
     /// </summary>
     public async Task<CustomerProfileDto> AddAddressAsync(AddAddressCommand command)
     {
+		_logger.LogInformation("Adding new address for customer ID: {CustomerId}", command.CustomerId);
         // AnyAsync: single EXISTS query – does not load the entity into memory
         bool customerExists = await _context.Customers
             .AnyAsync(c => c.Id == command.CustomerId);
@@ -41,6 +42,8 @@ public class CustomerService : ICustomerService
         await _context.CustomerAddresses.AddAsync(address);
         await _context.SaveChangesAsync();
 
+		_logger.LogInformation("Successfully added address ID: {AddressId} for customer ID: {CustomerId}", address.Id, command.CustomerId);
+
         return _mapper.Map<CustomerProfileDto>(await _context.Customers
 			.AsNoTracking()
 			.Include(c => c.Addresses)
@@ -49,6 +52,7 @@ public class CustomerService : ICustomerService
 
 	public async Task<CustomerProfileDto> RemoveAddressAsync(RemoveAddressCommand command)
 	{
+		_logger.LogInformation("Removing address ID: {AddressId} for customer ID: {CustomerId}", command.AddressId, command.CustomerId);
 		// Single query with ownership check – avoids a separate customer lookup
         var address = await _context.CustomerAddresses
             .FirstOrDefaultAsync(a => a.Id == command.AddressId && a.CustomerId == command.CustomerId);
@@ -60,6 +64,7 @@ public class CustomerService : ICustomerService
         // Partial update: AutoMapper skips null source values (configured via ForAllMembers in MappingProfile)
         _context.CustomerAddresses.Remove(address);
         await _context.SaveChangesAsync();
+		_logger.LogInformation("Successfully removed address ID: {AddressId} for customer ID: {CustomerId}", command.AddressId, command.CustomerId);
 
 		return _mapper.Map<CustomerProfileDto>(await _context.Customers
 			.AsNoTracking()
@@ -70,6 +75,7 @@ public class CustomerService : ICustomerService
 
 	public async Task<CustomerProfileDto> UpdateAddressAsync(UpdateAddressCommand command)
 	{
+		_logger.LogInformation("Updating address ID: {AddressId} for customer ID: {CustomerId}", command.AddressId, command.CustomerId);
 		// Single query with ownership check – avoids a separate customer lookup
         var address = await _context.CustomerAddresses
             .FirstOrDefaultAsync(a => a.Id == command.AddressId && a.CustomerId == command.CustomerId);
@@ -80,8 +86,9 @@ public class CustomerService : ICustomerService
 
         // Partial update: AutoMapper skips null source values (configured via ForAllMembers in MappingProfile)
         _mapper.Map(command, address);
-
         await _context.SaveChangesAsync();
+
+		_logger.LogInformation("Successfully updated address ID: {AddressId} for customer ID: {CustomerId}", command.AddressId, command.CustomerId);
 
 		return _mapper.Map<CustomerProfileDto>(await _context.Customers
 			.AsNoTracking()
@@ -91,6 +98,7 @@ public class CustomerService : ICustomerService
 
 	public async Task<CustomerProfileDto> UpdateProfileAsync(UpdateProfileCommand command)
 	{
+		_logger.LogInformation("Updating profile for customer ID: {CustomerId}", command.CustomerId);
 		// FindAsync uses PK – fastest EF lookup path
         var customer = await _context.Customers.FindAsync(command.CustomerId);
 
@@ -101,6 +109,8 @@ public class CustomerService : ICustomerService
         _mapper.Map(command, customer);
 		 _context.Update(customer);
         await _context.SaveChangesAsync();
+
+		_logger.LogInformation("Successfully updated profile for customer ID: {CustomerId}", command.CustomerId);
 
         return _mapper.Map<CustomerProfileDto>(await _context.Customers
 			.AsNoTracking()

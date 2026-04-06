@@ -21,6 +21,7 @@ public class ProductService : IProductService
 
     public async Task<IEnumerable<ProductDetailDto>> GetProducts()
     {
+		_logger.LogInformation("Fetching products from database");
         return await _dbContext.Products.Select(x => _mapper.Map<ProductDetailDto>(x)).ToListAsync();
     }
 

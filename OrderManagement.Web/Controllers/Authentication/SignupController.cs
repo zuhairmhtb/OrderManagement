@@ -20,6 +20,7 @@ public class SignupController : ControllerBase
     [HttpPost("admin")]
     public async Task<IActionResult> SignupAdmin(SignupCommand command)
     {
+        _logger.LogInformation("Received admin signup request for email: {Email}", command.Email);
         try
         {
             // Signup logic would go here, but is out of scope for this task.
@@ -30,6 +31,7 @@ public class SignupController : ControllerBase
             }
             else
             {
+                _logger.LogWarning("Admin signup failed for email: {Email}", command.Email);
                 return BadRequest(new { Error = "Signup failed." });   
             }
         } catch (Exception ex)
@@ -43,6 +45,7 @@ public class SignupController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Signup(SignupCommand command)
     {
+        _logger.LogInformation("Received customer signup request for email: {Email}", command.Email);
         try
         {
             // Signup logic would go here, but is out of scope for this task.
@@ -53,6 +56,7 @@ public class SignupController : ControllerBase
             }
             else
             {
+                _logger.LogWarning("Customer signup failed for email: {Email}", command.Email);
                 return BadRequest(new { Error = "Signup failed." });   
             }
         } catch (Exception ex)

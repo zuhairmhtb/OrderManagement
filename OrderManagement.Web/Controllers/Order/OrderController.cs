@@ -28,6 +28,7 @@ public class OrderController : ControllerBase
     [Authorize]
     public async Task<IActionResult> PlaceOrder([FromBody] PlaceOrderCommand command)
     {
+        _logger.LogInformation("Received request to place order for customer ID: {CustomerId}", command.CustomerId);
         try
         {
             var orderStatus = await _orderService.PlaceOrderAsync(command);
@@ -49,9 +50,15 @@ public class OrderController : ControllerBase
     [Authorize]
     public async Task<IActionResult> GetOrderDetails(Guid orderId)
     {
+        _logger.LogInformation("Received request to get details for order ID: {OrderId}", orderId);
         try
         {
             var orderDetails = await _orderService.GetOrderDetailsAsync(orderId);
+            if(orderDetails == null)
+            {
+                _logger.LogWarning("Order details not found for ID: {OrderId}", orderId);
+                return NotFound(new { Error = "Order details not found." });
+            }
             return Ok(orderDetails);
         }
         catch (Exception ex)
@@ -70,6 +77,7 @@ public class OrderController : ControllerBase
     [Authorize]
     public async Task<IActionResult> GetOrderStatus(Guid orderId)
     {
+        _logger.LogInformation("Received request to get status for order ID: {OrderId}", orderId);
         try
         {
             var orderStatus = await _orderService.GetOrderStatusAsync(orderId);
@@ -108,6 +116,8 @@ public class OrderController : ControllerBase
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20)
     {
+        _logger.LogInformation("Received request to search orders with filters - placedAtStartRange: {PlacedAtStartRange}, placedAtEndRange: {PlacedAtEndRange}, deliveredOnStartRange: {DeliveredOnStartRange}, deliveredOnEndRange: {DeliveredOnEndRange}, customerId: {CustomerId}, customerEmailPattern: {CustomerEmailPattern}, status: {Status}, page: {Page}, pageSize: {PageSize}",
+            placedAtStartRange, placedAtEndRange, deliveredOnStartRange, deliveredOnEndRange, customerId, customerEmailPattern, status, page, pageSize);
         try
         {
             var orders = await _orderService.SearchOrdersAsync(
@@ -120,6 +130,12 @@ public class OrderController : ControllerBase
                 status,
                 page,
                 pageSize);
+
+            if(orders == null || !orders.Any())
+            {
+                _logger.LogInformation("No orders found matching the search criteria.");
+                return NotFound(new { Message = "No orders found matching the search criteria." });
+            }
             
             return Ok(orders);
         }
@@ -134,10 +150,16 @@ public class OrderController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> PopulateSampleData()
     {
+        _logger.LogInformation("Received request to populate sample data for orders");
         try
         {
             // Create simulated data and populate the database
             var order = await _orderService.PopulateSampleDataAsync(null);
+            if(order == null)
+            {
+                _logger.LogWarning("Failed to populate sample data for orders");
+                return BadRequest(new { Error = "Failed to populate sample data." });
+            }
             return Ok(order);
         }
         catch (Exception ex)

@@ -106,6 +106,7 @@ public class AuthenticationService : IAuthenticationService
 
     public async Task<JwtSecurityToken> DecodeJwtTokenAsync(string token)
     {
+        _logger.LogInformation("Decoding JWT token");
         var handler = new JwtSecurityTokenHandler();
         var jwtToken = handler.ReadJwtToken(token);
         return await Task.FromResult(jwtToken);

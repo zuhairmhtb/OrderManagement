@@ -23,6 +23,7 @@ public class LoginController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Login([FromBody] LoginCommand command)
     {
+        _logger.LogInformation("Received login request for email: {Email}", command.Email);
         try
         {
             if (!ModelState.IsValid)
@@ -31,7 +32,10 @@ public class LoginController : ControllerBase
             var result = await _authenticationService.LoginAsync(command);
 
             if (result == null)
+            {
+                _logger.LogWarning("Login failed for email: {Email}", command.Email);
                 return Unauthorized(new { Error = "Invalid email or password." });
+            }
 
             return Ok(result);
         }

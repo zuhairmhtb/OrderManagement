@@ -34,6 +34,8 @@ public class OrderService : IOrderService
     /// </summary>
     public async Task<CustomerOrderDto> PlaceOrderAsync(PlaceOrderCommand command)
     {
+        _logger.LogInformation("Placing order for customer {CustomerId} with {ItemCount} item(s).",
+            command.CustomerId, command.Products.Count);
         // 1. Validate customer — FindAsync checks the EF identity map before hitting the DB
         var customer = await _dbContext.Customers.FindAsync(command.CustomerId);
         if (customer is null)
@@ -48,6 +50,10 @@ public class OrderService : IOrderService
         // 3. Parse the currency enum early so an invalid value fails fast
         if (!Enum.TryParse<Currency>(command.Currency, ignoreCase: true, out var currency))
             throw new ArgumentException($"Invalid currency code '{command.Currency}'.");
+
+        _logger.LogInformation("Checking if products are available for customer {customerId} order: {ProductIds}",
+            command.CustomerId,
+            string.Join(", ", command.Products.Select(p => p.ProductId)));
 
         // 4. Load all requested products in a single batch query
         var requestedIds = command.Products.Select(p => p.ProductId).Distinct().ToList();
@@ -73,6 +79,7 @@ public class OrderService : IOrderService
                     $"Available: {product.Quantity}, requested: {item.Quantity}.");
         }
 
+        _logger.LogInformation("All products are available. Proceeding to place order for customer {CustomerId}.", command.CustomerId);
         // 7. Snapshot prices into PurchasedProduct and decrement stock.
         //    EF change tracking records the stock decrements as pending UPDATEs.
         var purchasedProducts = new List<PurchasedProduct>();

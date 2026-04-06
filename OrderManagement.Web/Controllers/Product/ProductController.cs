@@ -25,6 +25,11 @@ public class ProductController: ControllerBase
     {
         _logger.LogInformation("Received request to get products");
         var products = await _productService.GetProducts();
+        if(products == null || !products.Any())
+        {
+            _logger.LogInformation("No products found");
+            return NotFound(new { Message = "No products found." });
+        }
         return Ok(products);
     }
 }

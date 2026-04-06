@@ -22,6 +22,7 @@ public class PasswordUpdateController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Update(UpdatePasswordCommand command)
     {
+        _logger.LogInformation("Received password update request for user ID: {UserId}", command.UserId);
         try
         {
             // Signup logic would go here, but is out of scope for this task.
@@ -29,7 +30,10 @@ public class PasswordUpdateController : ControllerBase
             if(result)
                 return Ok(new { Message = "Password updated successfully." });
             else
+            {
+                _logger.LogWarning("Password update failed for user ID: {UserId}", command.UserId);
                 return BadRequest(new { Error = "Password update failed." });
+            }
         } catch (Exception ex)
         {
             _logger.LogError(ex, "Error during signup");
