@@ -6,6 +6,7 @@ using OrderManagement.Database.Constants;
 using OrderManagement.Database.Context;
 using OrderManagement.Database.Dtos.Customer;
 using OrderManagement.Database.Dtos.Order;
+using OrderManagement.Database.Events.Order;
 using OrderManagement.Database.Models;
 using OrderManagement.Database.Seeds;
 using OrderManagement.Web.Interfaces;
@@ -27,10 +28,104 @@ public class OrderService : IOrderService
 		_context = context;
 	}
 
-	public async Task<OrderStatus> PlaceOrderAsync(PlaceOrderCommand command)
+	public async Task<CustomerOrderDto> PlaceOrderAsync(PlaceOrderCommand command)
 	{
-		await _publishEndpoint.Publish(command);
-		return OrderStatus.Pending;
+		_logger.LogInformation("Placing order for customer {CustomerId} with {ItemCount} item(s).",
+            command.CustomerId, command.Products.Count);
+        // 1. Validate customer — FindAsync checks the EF identity map before hitting the DB
+        var customer = await _context.Customers.FindAsync(command.CustomerId);
+        if (customer is null)
+            throw new KeyNotFoundException($"Customer '{command.CustomerId}' was not found.");
+
+        // 2. A contact number is required on every order; validate before doing further work
+        if (string.IsNullOrWhiteSpace(customer.PhoneNumber))
+            throw new InvalidOperationException(
+                $"Customer '{command.CustomerId}' has no phone number on record. " +
+                "A contact number is required to place an order.");
+
+        // 3. Parse the currency enum early so an invalid value fails fast
+        if (!Enum.TryParse<Currency>(command.Currency, ignoreCase: true, out var currency))
+            throw new ArgumentException($"Invalid currency code '{command.Currency}'.");
+
+        _logger.LogInformation("Checking if products are available for customer {customerId} order: {ProductIds}",
+            command.CustomerId,
+            string.Join(", ", command.Products.Select(p => p.ProductId)));
+
+        // 4. Load all requested products in a single batch query
+        var requestedIds = command.Products.Select(p => p.ProductId).Distinct().ToList();
+        var products = await _context.Products
+            .Where(p => requestedIds.Contains(p.Id))
+            .ToListAsync();
+
+        // 5. Verify every requested product exists
+        var missingIds = requestedIds.Except(products.Select(p => p.Id)).ToList();
+        if (missingIds.Count > 0)
+            throw new KeyNotFoundException(
+                $"The following products were not found: {string.Join(", ", missingIds)}.");
+
+        var productLookup = products.ToDictionary(p => p.Id);
+
+        // 6. Validate stock for ALL items before mutating anything — avoids partial state
+        foreach (var item in command.Products)
+        {
+            var product = productLookup[item.ProductId];
+            if (product.Quantity < item.Quantity)
+                throw new InvalidOperationException(
+                    $"Insufficient stock for '{product.Name}'. " +
+                    $"Available: {product.Quantity}, requested: {item.Quantity}.");
+        }
+
+        _logger.LogInformation("All products are available. Proceeding to place order for customer {CustomerId}.", command.CustomerId);
+        
+		var subtotal = command.Products.Sum(p => productLookup[p.ProductId].Price * p.Quantity);
+		var order = new Order
+		{
+			Id = Guid.NewGuid(),
+			OrderDate = DateTime.UtcNow,
+			OrderStatus = OrderStatus.Pending,
+
+			CustomerId = command.CustomerId,
+			CustomerEmail = customer.Email,
+			CustomerContactNumber = customer.PhoneNumber ?? "+1-555-000-0000",
+
+			Currency = currency,
+			Subtotal = subtotal,
+			TotalAmount = subtotal,
+			
+			Products = command.Products.Select(p => new PurchasedProduct
+			{
+				Id = Guid.NewGuid(),
+				ProductId = p.ProductId,
+				Name = productLookup[p.ProductId].Name,
+				Price = productLookup[p.ProductId].Price,
+				Currency = currency,
+				Quantity = p.Quantity
+			}).ToList(),
+
+			ShippingStreet = command.ShippingAddress.Street,
+			ShippingCity = command.ShippingAddress.City,
+			ShippingPostalCode = command.ShippingAddress.PostalCode,
+			ShippingCountry = command.ShippingAddress.Country,
+			ShippingState = command.ShippingAddress.State,
+
+			BillingStreet = command.BillingAddress?.Street ?? command.ShippingAddress.Street,
+			BillingCity = command.BillingAddress?.City ?? command.ShippingAddress.City,
+			BillingPostalCode = command.BillingAddress?.PostalCode ?? command.ShippingAddress.PostalCode,
+			BillingState = command.BillingAddress?.State ?? command.ShippingAddress.State,
+			BillingCountry = command.BillingAddress?.Country ?? command.ShippingAddress.Country
+		};
+
+		await _context.Orders.AddAsync(order);
+		await _context.SaveChangesAsync();
+
+		_logger.LogInformation("Order {OrderId} placed successfully for customer {CustomerId}. Publishing order placed event.", 
+			order.Id, command.CustomerId);
+
+		await _publishEndpoint.Publish(new PlacedOrderEvent {
+			OrderId = order.Id,
+			PlacedAt = DateTime.UtcNow
+		});
+		return _mapper.Map<CustomerOrderDto>(order);
 	}
 
 	public async Task<CustomerOrderDto> GetOrderDetailsAsync(Guid orderId)

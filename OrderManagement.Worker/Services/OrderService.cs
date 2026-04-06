@@ -1,11 +1,11 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using OrderManagement.Database.Commands.Order;
 using OrderManagement.Database.Constants;
 using OrderManagement.Database.Context;
 using OrderManagement.Database.Dtos.Customer;
 using OrderManagement.Database.Dtos.Order;
+using OrderManagement.Database.Events.Order;
 using OrderManagement.Database.Models;
 using OrderManagement.Web.Interfaces;
 
@@ -32,104 +32,37 @@ public class OrderService : IOrderService
     /// Stock decrements and the order INSERT are flushed in a single SaveChangesAsync
     /// call so EF can batch them into one database round-trip.
     /// </summary>
-    public async Task<CustomerOrderDto> PlaceOrderAsync(PlaceOrderCommand command)
+    public async Task<CustomerOrderDto> PlaceOrderAsync(PlacedOrderEvent command)
     {
-        _logger.LogInformation("Placing order for customer {CustomerId} with {ItemCount} item(s).",
-            command.CustomerId, command.Products.Count);
-        // 1. Validate customer — FindAsync checks the EF identity map before hitting the DB
-        var customer = await _dbContext.Customers.FindAsync(command.CustomerId);
-        if (customer is null)
-            throw new KeyNotFoundException($"Customer '{command.CustomerId}' was not found.");
+        _logger.LogInformation("Processing order {orderId}.",
+            command.OrderId);
 
-        // 2. A contact number is required on every order; validate before doing further work
-        if (string.IsNullOrWhiteSpace(customer.PhoneNumber))
-            throw new InvalidOperationException(
-                $"Customer '{command.CustomerId}' has no phone number on record. " +
-                "A contact number is required to place an order.");
+        var order = await _dbContext.Orders
+            .Include(o => o.Products)
+            .FirstOrDefaultAsync(o => o.Id == command.OrderId);
 
-        // 3. Parse the currency enum early so an invalid value fails fast
-        if (!Enum.TryParse<Currency>(command.Currency, ignoreCase: true, out var currency))
-            throw new ArgumentException($"Invalid currency code '{command.Currency}'.");
-
-        _logger.LogInformation("Checking if products are available for customer {customerId} order: {ProductIds}",
-            command.CustomerId,
-            string.Join(", ", command.Products.Select(p => p.ProductId)));
-
-        // 4. Load all requested products in a single batch query
-        var requestedIds = command.Products.Select(p => p.ProductId).Distinct().ToList();
-        var products = await _dbContext.Products
-            .Where(p => requestedIds.Contains(p.Id))
-            .ToListAsync();
-
-        // 5. Verify every requested product exists
-        var missingIds = requestedIds.Except(products.Select(p => p.Id)).ToList();
-        if (missingIds.Count > 0)
-            throw new KeyNotFoundException(
-                $"The following products were not found: {string.Join(", ", missingIds)}.");
-
-        var productLookup = products.ToDictionary(p => p.Id);
-
-        // 6. Validate stock for ALL items before mutating anything — avoids partial state
-        foreach (var item in command.Products)
+        if(order == null)
         {
-            var product = productLookup[item.ProductId];
-            if (product.Quantity < item.Quantity)
-                throw new InvalidOperationException(
-                    $"Insufficient stock for '{product.Name}'. " +
-                    $"Available: {product.Quantity}, requested: {item.Quantity}.");
+            _logger.LogError("Order {orderId} not found.", command.OrderId);
+            throw new InvalidOperationException($"Order with ID {command.OrderId} not found.");
         }
 
-        _logger.LogInformation("All products are available. Proceeding to place order for customer {CustomerId}.", command.CustomerId);
-        // 7. Snapshot prices into PurchasedProduct and decrement stock.
-        //    EF change tracking records the stock decrements as pending UPDATEs.
-        var purchasedProducts = new List<PurchasedProduct>();
-        double subtotal = 0;
-
-        foreach (var item in command.Products)
-        {
-            var product = productLookup[item.ProductId];
-
-            purchasedProducts.Add(new PurchasedProduct
-            {
-                ProductId = product.Id,
-                Name      = product.Name,
-                Price     = product.Price,
-                Currency  = product.Currency,
-                Quantity  = item.Quantity
-            });
-
-            subtotal         += product.Price * item.Quantity;
-            product.Quantity -= item.Quantity;
-        }
-
-        // 8. Build the Order entity via AutoMapper.
-        //    Address flattening, CustomerId, and OrderStatus=Pending are handled by the map.
-        //    Fields that require the loaded Customer, parsed enum, or computed totals
-        //    are set explicitly here since they are Ignored in the mapping profile.
-        var order = _mapper.Map<Order>(command);
-        order.Currency              = currency;
-        order.CustomerEmail         = customer.Email;
-        order.CustomerContactNumber = customer.PhoneNumber!;
-        order.Subtotal              = subtotal;
-        order.TotalAmount           = subtotal;
-        order.Products              = purchasedProducts;
-        order.OrderStatus           = OrderStatus.Pending; 
-
-        // 9. Single SaveChangesAsync — EF batches the Order INSERT, PurchasedProduct
-        //    INSERTs, and all stock UPDATEs into one database round-trip
-        await _dbContext.Orders.AddAsync(order);
+        order.OrderStatus = OrderStatus.Processing;
         await _dbContext.SaveChangesAsync();
 
-        _logger.LogInformation(
-            "Order {OrderId} placed for customer {CustomerId} — {ItemCount} item(s), total {Total} {Currency}.",
-            order.Id, customer.Id, purchasedProducts.Count, order.TotalAmount, order.Currency);
+         _logger.LogInformation("Calculating VAT, Shipping Cost, Additional Charges, and Total Price for order {orderId}.",
+            command.OrderId);
+
+            order.Vat = order.Products.Sum(p => p.Price * 0.2); // Example VAT calculation
+            order.ShippingCost = 5.0; // Flat shipping cost for simplicity
+            order.AdditionalCharges = 2.0; // Flat additional charge for simplicity
+            order.TotalAmount = order.Subtotal + order.Vat + order.ShippingCost + order.AdditionalCharges;
+            await _dbContext.SaveChangesAsync();
 
         // 10. Map to DTO.
         //     Customer is not a navigation property on Order, so it is resolved
         //     from the already-loaded Customer entity and set after the map call.
         var dto = _mapper.Map<CustomerOrderDto>(order);
-        dto.Customer = _mapper.Map<CustomerProfileDto>(customer);
-
         return dto;
     }
 }

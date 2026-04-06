@@ -8,7 +8,7 @@ namespace OrderManagement.Web.Interfaces;
 
 public interface IOrderService
 {
-    Task<OrderStatus> PlaceOrderAsync(PlaceOrderCommand command);
+    Task<CustomerOrderDto> PlaceOrderAsync(PlaceOrderCommand command);
     Task<CustomerOrderDto> GetOrderDetailsAsync(Guid orderId);
     Task<OrderStatus> GetOrderStatusAsync(Guid orderId);
     Task<IEnumerable<CustomerOrderDto>> SearchOrdersAsync(

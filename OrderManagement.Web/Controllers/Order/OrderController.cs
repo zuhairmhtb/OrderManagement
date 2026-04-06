@@ -31,8 +31,8 @@ public class OrderController : ControllerBase
         _logger.LogInformation("Received request to place order for customer ID: {CustomerId}", command.CustomerId);
         try
         {
-            var orderStatus = await _orderService.PlaceOrderAsync(command);
-            return Ok(new { Status = orderStatus.ToString(), Message = "Order placed successfully" });
+            var orderInformation = await _orderService.PlaceOrderAsync(command);
+            return Ok(new { Order = orderInformation, Message = "Order placed successfully" });
         }
         catch (Exception ex)
         {

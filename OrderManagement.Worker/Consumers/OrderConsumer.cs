@@ -1,11 +1,11 @@
 using MassTransit;
 using Microsoft.Extensions.Logging;
-using OrderManagement.Database.Commands.Order;
+using OrderManagement.Database.Events.Order;
 using OrderManagement.Web.Interfaces;
 
 namespace OrderManagement.Worker.Consumers;
 
-public class OrderConsumer: IConsumer<PlaceOrderCommand>
+public class OrderConsumer: IConsumer<PlacedOrderEvent>
 {
     private readonly IOrderService _orderService;
     private readonly ILogger<OrderConsumer> _logger;
@@ -17,17 +17,17 @@ public class OrderConsumer: IConsumer<PlaceOrderCommand>
     }
 
 
-    public async Task Consume(ConsumeContext<PlaceOrderCommand> context)
+    public async Task Consume(ConsumeContext<PlacedOrderEvent> eventContext)
     {
-        var command = context.Message;
-        _logger.Log(LogLevel.Information, $"Received PlaceOrderCommand for CustomerId: {command.CustomerId}");
+        var command = eventContext.Message;
+        _logger.Log(LogLevel.Information, $"Received PlacedOrderEvent for orderId: {command.OrderId}");
         try
         {
             var order = await _orderService.PlaceOrderAsync(command);
-            _logger.Log(LogLevel.Information, $"Successfully processed PlaceOrderCommand for CustomerId: {command.CustomerId}, OrderId: {order.OrderId}");
+            _logger.Log(LogLevel.Information, $"Successfully processed PlaceOrderCommand for orderId: {command.OrderId}, OrderId: {order.OrderId}");
         } catch (Exception ex)
         {
-            _logger.LogError(ex, $"Error processing PlaceOrderCommand for CustomerId: {command.CustomerId}");
+            _logger.LogError(ex, $"Error processing PlaceOrderCommand for orderId: {command.OrderId}");
             // Optionally, you could rethrow or handle the exception based on your needs
         }
     }

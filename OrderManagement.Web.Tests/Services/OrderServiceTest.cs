@@ -8,17 +8,23 @@ using OrderManagement.Database.Constants;
 using OrderManagement.Database.Context;
 using OrderManagement.Database.Dtos.Customer;
 using OrderManagement.Database.Dtos.Order;
+using OrderManagement.Database.Events.Order;
 using OrderManagement.Database.Models;
 using OrderManagement.Web.Services;
 
 namespace OrderManagement.Web.Tests.Services;
-public class OrderServiceTest: IDisposable
+
+public class OrderServiceTest : IDisposable
 {
     private readonly Mock<ILogger<OrderService>> _loggerMock;
     private readonly Mock<IMapper> _mapperMock;
     private readonly Mock<IPublishEndpoint> _publishEndpointMock;
     private readonly ApplicationDbContext _dbContext;
     private readonly OrderService _orderService;
+
+    private readonly PlaceOrderCommand _sampleCommand;
+    private readonly Customer _sampleCustomer;
+    private readonly IEnumerable<Product> _sampleProducts;
 
     public OrderServiceTest()
     {
@@ -30,27 +36,210 @@ public class OrderServiceTest: IDisposable
             .Options;
         _dbContext = new ApplicationDbContext(options);
         _orderService = new OrderService(_loggerMock.Object, _mapperMock.Object, _publishEndpointMock.Object, _dbContext);
+
+        _sampleCommand = new PlaceOrderCommand
+        {
+            CustomerId = Guid.NewGuid(),
+            Products = new List<OrderItemDto>
+            {
+                new OrderItemDto { ProductId = 1, Quantity = 2 }
+            },
+            ShippingAddress = new AddressDto
+            {
+                Street = "123 Test St",
+                City = "Test City",
+                PostalCode = "12345",
+                Country = "USA"
+            },
+            BillingAddress = new AddressDto
+            {
+                Street = "123 Test St",
+                City = "Test City",
+                PostalCode = "12345",
+                Country = "USA"
+            },
+            Currency = Currency.USD.ToString()
+        };
+        _sampleCustomer = new Customer
+        {
+            Id = _sampleCommand.CustomerId,
+            Email = "customer@example.com",
+            Password = "hashedpassword",
+            Role = UserRole.Customer,
+            FirstName = "John",
+            LastName = "Doe",
+            PhoneNumber = "+1234567890",
+        };
+        _sampleProducts = new List<Product>
+        {
+            new Product { Id = 1, Name = "Test Product", Price = 10.00, Quantity = 100 },
+            new Product { Id = 2, Name = "Another Product", Price = 20.00, Quantity = 50 }
+        };
     }
 
     [Fact]
     public async Task PlaceOrderAsync_ShouldPublishPlaceOrderCommand()
     {
         // Arrange
-        var command = new PlaceOrderCommand
+        _dbContext.Products.AddRange(_sampleProducts);
+        _dbContext.Customers.Add(_sampleCustomer);
+        await _dbContext.SaveChangesAsync();
+
+        _mapperMock.Setup(x => x.Map<CustomerOrderDto>(It.IsAny<Order>())).Returns((Order o) =>
         {
-            CustomerId = Guid.NewGuid(),
-            Products = new List<OrderItemDto>
+            return new CustomerOrderDto
             {
-                new OrderItemDto { ProductId = 1, Quantity = 2 }
-            }
-        };
+                OrderId = o.Id,
+                OrderDate = o.OrderDate,
+                DeliveryDate = o.DeliveryDate,
+                OrderStatus = o.OrderStatus.ToString(),
+
+                CustomerEmail = o.CustomerEmail,
+
+                Currency = o.Currency.ToString(),
+                Subtotal = o.Subtotal,
+                Total = o.TotalAmount,
+
+                Items = o.Products.Select(p => new OrderItemDto
+                {
+                    ProductId = p.ProductId,
+
+                    Quantity = p.Quantity
+                }).ToList(),
+
+                ShippingAddress = new AddressDto
+                {
+                    Street = o.ShippingStreet,
+                    City = o.ShippingCity,
+                    PostalCode = o.ShippingPostalCode,
+                    Country = o.ShippingCountry
+                },
+
+                BillingAddress = new AddressDto
+                {
+                    Street = o.BillingStreet,
+                    City = o.BillingCity,
+                    PostalCode = o.BillingPostalCode,
+                    Country = o.BillingCountry
+                }
+
+            };
+        });
 
         // Act
-        var result = await _orderService.PlaceOrderAsync(command);
+        var result = await _orderService.PlaceOrderAsync(_sampleCommand);
 
         // Assert
-        Assert.Equal(OrderStatus.Pending, result);
-        _publishEndpointMock.Verify(x => x.Publish(It.IsAny<PlaceOrderCommand>(), It.IsAny<CancellationToken>()), Times.Once);
+        Assert.Equal(OrderStatus.Pending.ToString(), result.OrderStatus);
+
+        var dbRecord = await _dbContext.Orders.FirstOrDefaultAsync(o => o.Id == result.OrderId);
+        Assert.NotNull(dbRecord);
+        Assert.Equal(_sampleCommand.CustomerId, dbRecord.CustomerId);
+        Assert.NotEqual(0, dbRecord.Subtotal);
+        Assert.True(dbRecord.Products.Select(x => x.ProductId).All(id => _sampleCommand.Products.Any(p => p.ProductId == id)));
+        _publishEndpointMock.Verify(x => x.Publish(It.IsAny<PlacedOrderEvent>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task PlaceOrderAsync_ShouldReturnErrorIfCustomerDoesNotExist()
+    {
+        // Arrange
+        _dbContext.Products.AddRange(_sampleProducts);
+        await _dbContext.SaveChangesAsync();
+
+        // Act
+        var exception = await Assert.ThrowsAsync<KeyNotFoundException>(() => _orderService.PlaceOrderAsync(_sampleCommand));
+
+        // Assert
+        Assert.Contains("Customer", exception.Message);
+        Assert.Contains("was not found", exception.Message);
+    }
+
+    [Fact]
+    public async Task PlaceOrderAsync_ShouldReturnErrorIfCustomerPhoneNumberDoesNotExist()
+    {
+        // Arrange
+        var customerWithContact =  new Customer
+        {
+            Id = _sampleCommand.CustomerId,
+            Email = "customer@example.com",
+            Password = "hashedpassword",
+            Role = UserRole.Customer,
+            FirstName = "John",
+            LastName = "Doe"
+        };
+        await _dbContext.Customers.AddAsync(customerWithContact);
+        _dbContext.Products.AddRange(_sampleProducts);
+        await _dbContext.SaveChangesAsync();
+
+        // Act
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => 
+        _orderService.PlaceOrderAsync(_sampleCommand));
+
+        // Assert
+        Assert.Contains("Customer", exception.Message);
+        Assert.Contains("no phone number", exception.Message);
+    }
+
+    [Fact]
+    public async Task PlaceOrderAsync_ShouldReturnErrorIfCurrencyDoesNotExist()
+    {
+        // Arrange
+        await _dbContext.Customers.AddAsync(_sampleCustomer);
+        _dbContext.Products.AddRange(_sampleProducts);
+        await _dbContext.SaveChangesAsync();
+
+        // Act
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() => 
+        _orderService.PlaceOrderAsync(new PlaceOrderCommand
+        {
+            CustomerId = _sampleCommand.CustomerId,
+            Products = _sampleCommand.Products,
+            ShippingAddress = _sampleCommand.ShippingAddress,
+            BillingAddress = _sampleCommand.BillingAddress,
+            Currency = "INVALID_CURRENCY"
+        }));
+
+        // Assert
+        Assert.Contains("Invalid currency code", exception.Message);
+    }
+
+    [Fact]
+    public async Task PlaceOrderAsync_ShouldReturnErrorIfProductIsMissing()
+    {
+        // Arrange
+        await _dbContext.Customers.AddAsync(_sampleCustomer);
+        _dbContext.Products.AddRange(new List<Product>
+        {
+            new Product { Id = 2, Name = "Test Product", Price = 10.00, Quantity = 100 }
+        });
+        await _dbContext.SaveChangesAsync();
+
+        // Act
+        var exception = await Assert.ThrowsAsync<KeyNotFoundException>(() => 
+        _orderService.PlaceOrderAsync(_sampleCommand));
+
+        // Assert
+        Assert.Contains("products were not found", exception.Message);
+    }
+
+     [Fact]
+    public async Task PlaceOrderAsync_ShouldReturnErrorIfProductHasInsufficientStock()
+    {
+        // Arrange
+        await _dbContext.Customers.AddAsync(_sampleCustomer);
+        _dbContext.Products.AddRange(new List<Product>
+        {
+            new Product { Id = 1, Name = "Test Product", Price = 10.00, Quantity = 0 }
+        });
+        await _dbContext.SaveChangesAsync();
+
+        // Act
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => 
+        _orderService.PlaceOrderAsync(_sampleCommand));
+
+        // Assert
+        Assert.Contains("Insufficient stock", exception.Message);
     }
 
     [Fact]
@@ -59,7 +248,7 @@ public class OrderServiceTest: IDisposable
         // Arrange
         var orderId = Guid.NewGuid();
         var customerId = Guid.NewGuid();
-        
+
         var customer = new Customer
         {
             Id = customerId,
@@ -101,7 +290,7 @@ public class OrderServiceTest: IDisposable
                     Quantity = 2,
                     OrderId = orderId
                 }
-            }            
+            }
         };
 
         var expectedOrderDto = new CustomerOrderDto
@@ -141,7 +330,7 @@ public class OrderServiceTest: IDisposable
         Assert.Equal(expectedOrderDto.OrderId, result.OrderId);
         Assert.Equal(expectedOrderDto.CustomerEmail, result.CustomerEmail);
         Assert.Equal(expectedOrderDto.OrderStatus, result.OrderStatus);
-        
+
         _mapperMock.Verify(m => m.Map<CustomerOrderDto>(It.IsAny<Order>()), Times.Once);
         _mapperMock.Verify(m => m.Map<CustomerProfileDto>(It.IsAny<Customer>()), Times.Once);
     }
@@ -155,10 +344,10 @@ public class OrderServiceTest: IDisposable
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentException>(
             () => _orderService.GetOrderDetailsAsync(nonExistentOrderId));
-        
+
         Assert.Contains("not found", exception.Message);
         Assert.Contains(nonExistentOrderId.ToString(), exception.Message);
-        
+
         _mapperMock.Verify(m => m.Map<CustomerOrderDto>(It.IsAny<Order>()), Times.Never);
     }
 
@@ -207,7 +396,7 @@ public class OrderServiceTest: IDisposable
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentException>(
             () => _orderService.GetOrderStatusAsync(nonExistentOrderId));
-        
+
         Assert.Contains("not found", exception.Message);
         Assert.Contains(nonExistentOrderId.ToString(), exception.Message);
     }
@@ -218,7 +407,7 @@ public class OrderServiceTest: IDisposable
         // Arrange
         var customerId1 = Guid.NewGuid();
         var customerId2 = Guid.NewGuid();
-        
+
         var customer1 = new Customer
         {
             Id = customerId1,
@@ -331,7 +520,7 @@ public class OrderServiceTest: IDisposable
                 Subtotal = order.Subtotal,
                 Total = order.TotalAmount
             });
-            
+
         _mapperMock.Setup(m => m.Map<CustomerProfileDto>(It.IsAny<Customer>()))
             .Returns((Customer customer) => new CustomerProfileDto
             {
@@ -357,7 +546,7 @@ public class OrderServiceTest: IDisposable
         // Arrange
         var customerId1 = Guid.NewGuid();
         var customerId2 = Guid.NewGuid();
-        
+
         var customer1 = new Customer
         {
             Id = customerId1,
@@ -438,7 +627,7 @@ public class OrderServiceTest: IDisposable
                 Subtotal = order.Subtotal,
                 Total = order.TotalAmount
             });
-            
+
         _mapperMock.Setup(m => m.Map<CustomerProfileDto>(It.IsAny<Customer>()))
             .Returns((Customer customer) => new CustomerProfileDto
             {
@@ -463,7 +652,7 @@ public class OrderServiceTest: IDisposable
     {
         // Arrange
         var customerId = Guid.NewGuid();
-        
+
         var customer = new Customer
         {
             Id = customerId,
@@ -534,7 +723,7 @@ public class OrderServiceTest: IDisposable
                 Subtotal = order.Subtotal,
                 Total = order.TotalAmount
             });
-            
+
         _mapperMock.Setup(m => m.Map<CustomerProfileDto>(It.IsAny<Customer>()))
             .Returns((Customer customer) => new CustomerProfileDto
             {
@@ -559,7 +748,7 @@ public class OrderServiceTest: IDisposable
     {
         // Arrange
         var customerId = Guid.NewGuid();
-        
+
         var customer = new Customer
         {
             Id = customerId,
@@ -652,7 +841,7 @@ public class OrderServiceTest: IDisposable
                 Subtotal = order.Subtotal,
                 Total = order.TotalAmount
             });
-            
+
         _mapperMock.Setup(m => m.Map<CustomerProfileDto>(It.IsAny<Customer>()))
             .Returns((Customer customer) => new CustomerProfileDto
             {
@@ -672,7 +861,7 @@ public class OrderServiceTest: IDisposable
         // Assert
         Assert.NotNull(result);
         Assert.Equal(2, result.Count());
-        Assert.All(result, dto => 
+        Assert.All(result, dto =>
         {
             Assert.True(dto.OrderDate >= baseDate.AddDays(-5));
             Assert.True(dto.OrderDate <= baseDate);
@@ -684,7 +873,7 @@ public class OrderServiceTest: IDisposable
     {
         // Arrange
         var customerId = Guid.NewGuid();
-        
+
         var customer = new Customer
         {
             Id = customerId,
@@ -735,7 +924,7 @@ public class OrderServiceTest: IDisposable
                 Subtotal = order.Subtotal,
                 Total = order.TotalAmount
             });
-            
+
         _mapperMock.Setup(m => m.Map<CustomerProfileDto>(It.IsAny<Customer>()))
             .Returns((Customer customer) => new CustomerProfileDto
             {
@@ -759,7 +948,7 @@ public class OrderServiceTest: IDisposable
     {
         // Arrange
         var customerId = Guid.NewGuid();
-        
+
         var customer = new Customer
         {
             Id = customerId,
@@ -806,7 +995,7 @@ public class OrderServiceTest: IDisposable
                 Subtotal = order.Subtotal,
                 Total = order.TotalAmount
             });
-            
+
         _mapperMock.Setup(m => m.Map<CustomerProfileDto>(It.IsAny<Customer>()))
             .Returns((Customer customer) => new CustomerProfileDto
             {
