@@ -12,9 +12,9 @@ public class CustomerConsumer :
     IConsumer<RemoveAddressCommand>
 {
     private readonly ICustomerService _customerService;
-    private readonly Logger<CustomerConsumer> _logger;
+    private readonly ILogger<CustomerConsumer> _logger;
 
-    public CustomerConsumer(ICustomerService customerService, Logger<CustomerConsumer> logger)
+    public CustomerConsumer(ICustomerService customerService, ILogger<CustomerConsumer> logger)
     {
         _customerService = customerService;
         _logger = logger;

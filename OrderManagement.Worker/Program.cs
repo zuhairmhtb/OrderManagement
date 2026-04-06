@@ -4,6 +4,7 @@ using MassTransit;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using OrderManagement.Web.Interfaces;
 using OrderManagement.Worker.Services;
 using Subscriber;
@@ -41,6 +42,12 @@ public class Program
 
     static void ConfigureServices(IServiceCollection services)
     {
+        services.AddLogging(config =>
+        {
+            config.AddConsole();
+            // Add other logging providers as needed
+            
+        });
         services.AddScoped<ICustomerService, CustomerService>();
         services.AddScoped<IOrderService, OrderService>();
     }

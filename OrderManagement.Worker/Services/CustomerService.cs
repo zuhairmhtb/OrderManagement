@@ -1,6 +1,6 @@
 using AutoMapper;
-using Microsoft.Build.Framework;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using OrderManagement.Database.Commands.Customer;
 using OrderManagement.Database.Context;
 using OrderManagement.Database.Dtos.Customer;
@@ -13,9 +13,9 @@ public class CustomerService : ICustomerService
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly IMapper _mapper;
-    private readonly ILogger _logger ;
+    private readonly ILogger<CustomerService> _logger ;
 
-    public CustomerService(ApplicationDbContext dbContext, IMapper mapper, ILogger logger)
+    public CustomerService(ApplicationDbContext dbContext, IMapper mapper, ILogger<CustomerService> logger)
     {
         _dbContext = dbContext;
         _mapper = mapper;

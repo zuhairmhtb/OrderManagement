@@ -8,9 +8,9 @@ namespace OrderManagement.Worker.Consumers;
 public class OrderConsumer: IConsumer<PlaceOrderCommand>
 {
     private readonly IOrderService _orderService;
-    private readonly Logger<OrderConsumer> _logger;
+    private readonly ILogger<OrderConsumer> _logger;
 
-    public OrderConsumer(IOrderService orderService, Logger<OrderConsumer> logger)
+    public OrderConsumer(IOrderService orderService, ILogger<OrderConsumer> logger)
     {
         _orderService = orderService;
         _logger = logger;
